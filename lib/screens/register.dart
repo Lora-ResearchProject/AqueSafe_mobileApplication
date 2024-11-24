@@ -1,12 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import '../models/user_model.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
+
+  @override
+  _RegisterScreenState createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController _vesselNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  void _registerUser() async {
+    final String vesselName = _vesselNameController.text.trim();
+    final String email = _emailController.text;
+    final String password = _passwordController.text;
+
+    if (vesselName.isEmpty || email.isEmpty || password.isEmpty) {
+      print("All fields are required!");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    // Generate a unique vesselId
+    final String vesselId = 'Vessel_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Save user to Hive
+    var usersBox = Hive.box('users');
+    var existingUser = usersBox.values.firstWhere(
+      (user) => user.email == email,
+      orElse: () => null,
+    );
+
+    if (existingUser != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User already exists.')),
+      );
+      return;
+    }
+
+    final newUser = User()
+      ..vesselName = vesselName
+      ..email = email
+      ..password = password
+      ..vesselId = vesselId;
+
+    await usersBox.add(newUser);
+    print("----------------- User added to Hive with details: $newUser");
+    print(
+        "----------------- User registered successfully! Vessel ID: $vesselId");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Account created successfully!')),
+    );
+
+    Navigator.pushNamed(context, '/login');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF151d67), 
+      backgroundColor: const Color(0xFF151d67),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
         child: Column(
@@ -16,7 +75,7 @@ class RegisterScreen extends StatelessWidget {
             // Logo
             Center(
               child: Image.asset(
-                'assets/logo.png', 
+                'assets/logo.png',
                 height: 80,
                 width: 80,
               ),
@@ -35,10 +94,11 @@ class RegisterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // Username Input
+            // Vessel Name Input
             TextField(
+              controller: _vesselNameController,
               decoration: InputDecoration(
-                labelText: 'Username',
+                labelText: 'Vessel Name',
                 labelStyle: const TextStyle(color: Colors.white),
                 filled: true,
                 fillColor: const Color(0xFF1C3D72),
@@ -57,6 +117,7 @@ class RegisterScreen extends StatelessWidget {
 
             // Email Input
             TextField(
+              controller: _emailController,
               decoration: InputDecoration(
                 labelText: 'Email',
                 labelStyle: const TextStyle(color: Colors.white),
@@ -77,6 +138,7 @@ class RegisterScreen extends StatelessWidget {
 
             // Password Input
             TextField(
+              controller: _passwordController,
               obscureText: true,
               decoration: InputDecoration(
                 labelText: 'Password',
@@ -98,43 +160,22 @@ class RegisterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // Accept Terms Checkbox
-            Row(
-              children: [
-                Checkbox(
-                  value: true,
-                  onChanged: (bool? value) {
-                    // Handle terms acceptance toggle
-                  },
-                  checkColor: const Color(0xFF151d67),
-                  activeColor: Colors.white,
-                ),
-                const Expanded(
-                  child: Text(
-                    'I accept the terms and privacy policy',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
             // Create Account Button
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE3E8FF), 
+                backgroundColor: const Color(0xFFE3E8FF),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               onPressed: () {
-                // Handle create account action
+                _registerUser();
               },
               child: const Text(
                 'Create Account',
                 style: TextStyle(
-                  color: Color(0xFF151d67), 
+                  color: Color(0xFF151d67),
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),

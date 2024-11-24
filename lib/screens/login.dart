@@ -1,7 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import '../models/user_model.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // Function to handle user login
+  void _loginUser() async {
+    final String email = _emailController.text.trim();
+    final String password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    // Access the Hive box
+    final box = Hive.box('users');
+
+    // Find the user by email and password
+    var existingUser = box.values.firstWhere(
+      (user) => (user as User).email == email && user.password == password,
+      orElse: () => null,
+    );
+
+    if (existingUser != null) {
+      // Successful login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login successful!')),
+      );
+
+      // Navigate to the dashboard
+      Navigator.pushNamed(context, '/dashboard');
+    } else {
+      // Invalid login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid username or password.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +82,14 @@ class LoginScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // Username Input
+            // Email Input
             TextField(
+              controller: _emailController, // Bind controller
               decoration: InputDecoration(
-                hintText: 'Your username',
+                hintText: 'Username',
                 hintStyle: const TextStyle(color: Colors.white54),
                 filled: true,
-                fillColor: const Color(0xFF1C3D72), // Input field background
+                fillColor: const Color(0xFF1C3D72),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -53,6 +101,7 @@ class LoginScreen extends StatelessWidget {
 
             // Password Input
             TextField(
+              controller: _passwordController, // Bind controller
               obscureText: true,
               decoration: InputDecoration(
                 hintText: 'Password',
@@ -73,7 +122,7 @@ class LoginScreen extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // Handle forgot password action
+                  printAllUsers(); // Debug: Print all users
                 },
                 child: const Text(
                   'Forgot password?',
@@ -93,7 +142,7 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, '/dashboard');
+                _loginUser(); // Call login logic
               },
               child: const Text(
                 'Log in',
@@ -128,5 +177,20 @@ class LoginScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Debug: Print all users in the database
+  void printAllUsers() {
+    final box = Hive.box('users');
+    print("============= All Users Data ==============");
+
+    if (box.isEmpty) {
+      debugPrint('No users found in the database.');
+    } else {
+      for (var user in box.values) {
+        debugPrint(
+            'User: ${user.vesselName}, Email: ${user.email}, Vessel ID: ${user.vesselId}');
+      }
+    }
   }
 }
