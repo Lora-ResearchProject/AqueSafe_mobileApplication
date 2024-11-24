@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import '../models/user_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert'; // For encoding the request body
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -14,7 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  void _registerUser() async {
+  Future<void> _registerUser() async {
     final String vesselName = _vesselNameController.text.trim();
     final String email = _emailController.text;
     final String password = _passwordController.text;
@@ -27,39 +27,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Generate a unique vesselId
-    final String vesselId = 'Vessel_${DateTime.now().millisecondsSinceEpoch}';
+    final Uri url =
+        Uri.parse('http://10.0.2.2:3001/api/vessel-auth/vessel-register/');
 
-    // Save user to Hive
-    var usersBox = Hive.box('users');
-    var existingUser = usersBox.values.firstWhere(
-      (user) => user.email == email,
-      orElse: () => null,
-    );
-
-    if (existingUser != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User already exists.')),
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'vesselName': vesselName,
+          'email': email,
+          'password': password,
+        }),
       );
-      return;
+
+      if (response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+
+        if (responseData['message'] == 'Vessel registered successfully') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vessel registered successfully!')),
+          );
+          Navigator.pushNamed(context, '/login'); // Navigate to login page
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(responseData['message'] ?? 'Unknown error')),
+          );
+        }
+      } else {
+        print('Error: ${response.statusCode}, ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to register. Try again.')),
+        );
+      }
+    } catch (e) {
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An error occurred. Please try again.')),
+      );
     }
-
-    final newUser = User()
-      ..vesselName = vesselName
-      ..email = email
-      ..password = password
-      ..vesselId = vesselId;
-
-    await usersBox.add(newUser);
-    print("----------------- User added to Hive with details: $newUser");
-    print(
-        "----------------- User registered successfully! Vessel ID: $vesselId");
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Account created successfully!')),
-    );
-
-    Navigator.pushNamed(context, '/login');
   }
 
   @override
@@ -169,9 +175,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: () {
-                _registerUser();
-              },
+              onPressed: _registerUser,
               child: const Text(
                 'Create Account',
                 style: TextStyle(
