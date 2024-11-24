@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/user_model.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/dashboard.dart';
+import 'services/gps_scheduler_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive
+  await Hive.initFlutter();
+  Hive.registerAdapter(UserAdapter());
+  // await Hive.deleteBoxFromDisk('users'); // Uncomment this to reset the database
+  await Hive.openBox('users');
+
+  // Start the GPS Scheduler
+  final SchedulerService gpsScheduler = SchedulerService();
+  await gpsScheduler.startScheduler();
+
   runApp(const AquaSafeApp());
 }
 
