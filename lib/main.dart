@@ -6,12 +6,16 @@ import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/dashboard.dart';
 import 'services/gps_scheduler_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // Initialize SharedPreferences to ensure readiness
+  await SharedPreferences.getInstance();
 
   // Initialize Hive
   await Hive.initFlutter();
