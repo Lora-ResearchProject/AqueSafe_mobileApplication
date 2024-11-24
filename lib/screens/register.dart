@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For encoding the request body
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -27,8 +28,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    final Uri url =
-        Uri.parse('http://10.0.2.2:3001/api/vessel-auth/vessel-register/');
+    // Access the base URL from the .env file
+    final String? baseUrl = dotenv.env['MAIN_API_BASE_URL'];
+    if (baseUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API base URL not configured.')),
+      );
+      return;
+    }
+
+    final Uri url = Uri.parse('$baseUrl/vessel-auth/vessel-register/');
 
     try {
       final response = await http.post(

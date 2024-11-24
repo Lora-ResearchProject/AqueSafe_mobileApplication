@@ -37,6 +37,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/logo.png
     - assets/fish_icon.png
     - assets/weather.png
