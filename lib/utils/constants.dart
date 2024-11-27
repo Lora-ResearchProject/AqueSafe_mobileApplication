@@ -1,6 +1,9 @@
 class Constants {
-  static const String deviceUuid =
-      "12345678-1234-1234-1234-123456789abc"; // ESP32 Service UUID
+  static const String targetDeviceMac =
+      "CC:DB:A7:3F:51:5A"; // Target device MAC address
+
+  static const String serviceUuid =
+      "12345678-1234-1234-1234-123456789abc"; // Service UUID
   static const String gpsCharacteristicUuid =
       "abcd1234-5678-1234-5678-abcdef123456";
   static const String sosCharacteristicUuid =
