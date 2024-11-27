@@ -12,44 +12,43 @@ class SchedulerService {
   // Initialize the scheduler
   Future<void> startScheduler() async {
     try {
-      // Initialize Bluetooth
-      await _bluetoothService.initializeBluetooth();
+      await _bluetoothService.scanAndConnect();
 
-      // Start the periodic scheduler for GPS data
       _gpsTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
-          // Fetch GPS Data
           var position = await _locationService.getCurrentPosition();
           String latitude = position.latitude.toStringAsFixed(6);
           String longitude = position.longitude.toStringAsFixed(6);
 
-          // Prepare GPS Data
           String gpsData = jsonEncode({
             "id": "${Constants.vesselId}-0000",
             "l": "$latitude-$longitude",
           });
 
-          // Send GPS Data via Bluetooth
-          await _bluetoothService.sendData(
-            _bluetoothService.gpsCharacteristic,
-            gpsData,
-          );
+          await _bluetoothService.sendGPSData(gpsData);
 
-          print("GPS data sent: $gpsData");
+          print(
+              "------------------------ GPS data send request sent with gps Data: $gpsData");
         } catch (e) {
-          print("Error in GPS Scheduler: $e");
+          print("------------------------ Error in GPS Scheduler: $e");
+
+          // Attempt to reconnect if BLE is disconnected
+          if (e.toString().contains("Disconnected")) {
+            print("------------------------ Attempting to reconnect...");
+            await _bluetoothService.scanAndConnect();
+          }
         }
       });
 
-      print("GPS Scheduler started successfully.");
+      print("------------------------ GPS Scheduler was started successfully.");
     } catch (e) {
-      print("Error initializing GPS Scheduler: $e");
+      print("------------------------ Error initializing GPS Scheduler: $e");
     }
   }
 
   // Stop the scheduler
   void stopScheduler() {
     _gpsTimer?.cancel();
-    print("GPS Scheduler stopped.");
+    print("------------------------ GPS Scheduler stopped.");
   }
 }
