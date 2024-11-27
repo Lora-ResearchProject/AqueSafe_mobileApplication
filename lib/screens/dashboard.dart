@@ -13,60 +13,56 @@ class Dashboard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Weather Header
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C3D72), // Light blue container
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Temperature and Location
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          '19°',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Galle, Sri Lanka',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'H:24°  L:18°',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Weather Icon
-                    Image.asset(
-                      'assets/weather.png', // Replace with your weather icon
-                      height: 60,
-                      width: 60,
-                    ),
-                  ],
-                ),
+              // Connection Status
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildConnectionStatus(
+                    label: 'Bluetooth',
+                    isConnected: true, // Dynamically update this
+                  ),
+                  _buildConnectionStatus(
+                    label: 'LoRa',
+                    isConnected: false, // Dynamically update this
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
 
-              // Notifications
+              // Large SOS Button
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    _showSOSConfirmationDialog(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24.0,
+                      horizontal: 80.0,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    "TRIGGER SOS",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Notifications Section
               const Text(
                 'Notifications',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -76,18 +72,31 @@ class Dashboard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C3D72),
                   borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text(
-                      '• A sunny day in your location, consider wearing your UV protection.',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    NotificationItem(
+                      icon: Icons.sunny,
+                      message:
+                          'A sunny day in your location. Wear UV protection.',
                     ),
                     SizedBox(height: 8),
-                    Text(
-                      '• A cloudy day will occur all day long, don’t worry about the rain.',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    NotificationItem(
+                      icon: Icons.cloud,
+                      message: 'A cloudy day all day long. No rain expected.',
+                    ),
+                    SizedBox(height: 8),
+                    NotificationItem(
+                      icon: Icons.warning,
+                      message: 'Strong winds expected. Stay cautious.',
                     ),
                   ],
                 ),
@@ -99,7 +108,7 @@ class Dashboard extends StatelessWidget {
                 'Quick Links',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -112,106 +121,25 @@ class Dashboard extends StatelessWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   children: [
-                    // Fishing Spots
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFBFEFFF),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/fish_icon.png', // Replace with your custom fish icon
-                              height: 36,
-                              width: 36,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Fishing Spots',
-                              style: TextStyle(
-                                color: Color(0xFF151d67),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    _buildQuickLinkCard(
+                      icon: Icons.anchor,
+                      label: 'Fishing Spots',
+                      color: const Color(0xFFBFEFFF),
                     ),
-
-                    // SOS Alerts
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFCDD2),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.sos, size: 36, color: Colors.red),
-                            SizedBox(height: 8),
-                            Text(
-                              'SOS Alerts',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    _buildQuickLinkCard(
+                      icon: Icons.sos,
+                      label: 'SOS Alerts',
+                      color: const Color(0xFFFFCDD2),
                     ),
-
-                    // Chat
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8E1A6),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.chat,
-                                size: 36, color: Color(0xFF151d67)),
-                            SizedBox(height: 8),
-                            Text(
-                              'Chat',
-                              style: TextStyle(
-                                color: Color(0xFF151d67),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    _buildQuickLinkCard(
+                      icon: Icons.chat,
+                      label: 'Chat',
+                      color: const Color(0xFFF8E1A6),
                     ),
-
-                    // Weather
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD1F3FF),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.cloud,
-                                size: 36, color: Color(0xFF151d67)),
-                            SizedBox(height: 8),
-                            Text(
-                              'Weather',
-                              style: TextStyle(
-                                color: Color(0xFF151d67),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    _buildQuickLinkCard(
+                      icon: Icons.cloud,
+                      label: 'Weather',
+                      color: const Color(0xFFD1F3FF),
                     ),
                   ],
                 ),
@@ -237,6 +165,152 @@ class Dashboard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildConnectionStatus(
+      {required String label, required bool isConnected}) {
+    return Row(
+      children: [
+        Icon(
+          isConnected ? Icons.check_circle : Icons.cancel,
+          color: isConnected ? Colors.green : Colors.red,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          "$label: ${isConnected ? 'Connected' : 'Disconnected'}",
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickLinkCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 36, color: Colors.black87),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSOSConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent dismissal by tapping outside
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF151d67),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Center(
+          child: Text(
+            "Are you sure you want to send an SOS?",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        content: const Text(
+          "This will notify all nearby vessels and emergency contacts.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18,
+            color: Color.fromARGB(179, 229, 229, 229),
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),
+              side: const BorderSide(color: Color(0xFF151d67), width: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Color(0xFF151d67), fontSize: 20),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              // Add SOS trigger functionality here
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 18, 115, 194),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              "Confirm",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NotificationItem extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const NotificationItem({
+    Key? key,
+    required this.icon,
+    required this.message,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white, size: 24),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
