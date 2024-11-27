@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../services/bluetooth_service.dart';
 import '../services/location_service.dart';
 import '../utils/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SchedulerService {
   final LocationService _locationService = LocationService();
@@ -14,6 +15,13 @@ class SchedulerService {
     try {
       await _bluetoothService.scanAndConnect();
 
+      // Fetch `id` from SharedPreferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? vesselId = prefs.getString('vesselId');
+      if (vesselId == null || vesselId.isEmpty) {
+        throw Exception("Vessel ID not found in SharedPreferences");
+      }
+
       _gpsTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
           var position = await _locationService.getCurrentPosition();
@@ -21,7 +29,7 @@ class SchedulerService {
           String longitude = position.longitude.toStringAsFixed(6);
 
           String gpsData = jsonEncode({
-            "id": "${Constants.vesselId}-0000",
+            "id": "$vesselId-0000",
             "l": "$latitude-$longitude",
           });
 
