@@ -7,6 +7,7 @@ import 'screens/register.dart';
 import 'screens/dashboard.dart';
 import 'services/gps_scheduler_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'utils/preferences_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,9 @@ void main() async {
 
   // Initialize SharedPreferences to ensure readiness
   await SharedPreferences.getInstance();
+
+  // Log all SharedPreferences
+  PreferencesHelper.printSharedPreferences();
 
   // Initialize Hive
   await Hive.initFlutter();
