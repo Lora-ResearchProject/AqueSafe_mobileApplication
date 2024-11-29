@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'models/user_model.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/dashboard.dart';
 import 'services/gps_scheduler_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/preferences_helper.dart';
+import '../services/bluetooth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,17 +14,18 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  // Initialize SharedPreferences to ensure readiness
+  // Initialize SharedPreferences
   await SharedPreferences.getInstance();
 
   // Log all SharedPreferences
   PreferencesHelper.printSharedPreferences();
 
-  // Initialize Hive
-  await Hive.initFlutter();
-  Hive.registerAdapter(UserAdapter());
-  // await Hive.deleteBoxFromDisk('users'); // Uncomment this to reset the database
-  await Hive.openBox('users');
+  // Initialize services, including GPS and Bluetooth
+  // final BluetoothService bluetoothService = BluetoothService();
+  // bluetoothService.monitorConnection();
+
+  final BluetoothService bluetoothService = BluetoothService();
+  await bluetoothService.scanAndConnect();
 
   // Start the GPS Scheduler
   final SchedulerService gpsScheduler = SchedulerService();

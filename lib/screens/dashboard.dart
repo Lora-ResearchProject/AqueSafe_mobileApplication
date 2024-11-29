@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import '../services/sos_trigger_service.dart';
+import '../services/bluetooth_service.dart';
+import '../screens/sos_alerts_list.dart';
 
 class Dashboard extends StatelessWidget {
-  const Dashboard({Key? key}) : super(key: key);
+  final SOSTriggerService _sosTriggerService;
+  final BluetoothService _bluetoothService = BluetoothService();
+
+  Dashboard({Key? key})
+      : _sosTriggerService = SOSTriggerService(),
+        super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +41,7 @@ class Dashboard extends StatelessWidget {
               Center(
                 child: ElevatedButton(
                   onPressed: () {
-                    _showSOSConfirmationDialog(context);
+                    _showSOSConfirmationDialog(context, _bluetoothService);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -124,22 +132,29 @@ class Dashboard extends StatelessWidget {
                     _buildQuickLinkCard(
                       icon: Icons.anchor,
                       label: 'Fishing Spots',
-                      color: const Color(0xFFBFEFFF),
+                      color: const Color.fromARGB(255, 36, 163, 183),
                     ),
                     _buildQuickLinkCard(
                       icon: Icons.sos,
                       label: 'SOS Alerts',
-                      color: const Color(0xFFFFCDD2),
+                      color: const Color.fromARGB(255, 195, 41, 59),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => SOSAlertScreen()),
+                        );
+                      },
                     ),
                     _buildQuickLinkCard(
                       icon: Icons.chat,
                       label: 'Chat',
-                      color: const Color(0xFFF8E1A6),
+                      color: const Color.fromARGB(255, 174, 116, 23),
                     ),
                     _buildQuickLinkCard(
                       icon: Icons.cloud,
                       label: 'Weather',
-                      color: const Color(0xFFD1F3FF),
+                      color: const Color.fromARGB(255, 1, 95, 142),
                     ),
                   ],
                 ),
@@ -168,6 +183,46 @@ class Dashboard extends StatelessWidget {
     );
   }
 
+  Widget _buildQuickLinkCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        color: color.withOpacity(0.85),
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 40,
+                color: Colors.white,
+              ),
+              SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildConnectionStatus(
       {required String label, required bool isConnected}) {
     return Row(
@@ -185,36 +240,8 @@ class Dashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickLinkCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 36, color: Colors.black87),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showSOSConfirmationDialog(BuildContext context) {
+  void _showSOSConfirmationDialog(
+      BuildContext context, BluetoothService bluetoothService) {
     showDialog(
       context: context,
       barrierDismissible: false, // Prevent dismissal by tapping outside
@@ -259,10 +286,8 @@ class Dashboard extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              // Add SOS trigger functionality here
-            },
+            onPressed: () =>
+                _sosTriggerService.handleConfirm(context, bluetoothService, ctx),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 18, 115, 194),
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),
