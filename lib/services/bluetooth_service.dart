@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../utils/constants.dart';
+import '../utils/bluetooth_device_manager.dart';
 
 class BluetoothService {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
@@ -13,6 +14,37 @@ class BluetoothService {
   late QualifiedCharacteristic weatherCharacteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
+
+  // Global state to manage Bluetooth connection
+  bool _isConnected = false;
+  bool get isConnected => _isConnected;
+  DiscoveredDevice? discoveredDevice;
+
+  // check connection state manually
+  Future<bool> checkConnectionState() async {
+    try {
+      return _isConnected;
+    } catch (e) {
+      print("Error checking Bluetooth connection state: $e");
+      return false;
+    }
+  }
+
+  // Monitor connection continuously every 5 seconds
+  void monitorConnection() {
+    Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        if (!_isConnected) {
+          // print("Bluetooth is disconnected. Attempting to reconnect...");
+          // await scanAndConnect();
+        } else {
+          print("Bluetooth is connected.");
+        }
+      } catch (e) {
+        print("Error monitoring Bluetooth connection: $e");
+      }
+    });
+  }
 
   Future<void> requestPermissions() async {
     if (await Permission.location.isDenied ||
@@ -46,21 +78,24 @@ class BluetoothService {
 
     late StreamSubscription<DiscoveredDevice> scanSubscription;
     try {
-      print(">>> Starting BLE scan...");
+      print(">>>>>> Starting BLE scan...");
       bool deviceFound = false;
 
       scanSubscription = _ble.scanForDevices(
           withServices: [Uuid.parse(Constants.serviceUuid)]).listen(
         (device) async {
           if (device.name == "ESP32-MultiService") {
-            print(">>> Target ESP32 device found. Connecting...");
+            print("Target ESP32 device found. Connecting...");
             deviceFound = true;
+
             await scanSubscription.cancel();
             await _connectToDevice(device);
+
+            BluetoothDeviceManager().setDevice(device);
           }
         },
         onError: (e) {
-          print(">>> Error during BLE scan: $e");
+          print("--- Error during BLE scan: $e");
         },
       );
 
@@ -70,7 +105,7 @@ class BluetoothService {
         throw Exception("Target ESP32 device not found during scan.");
       }
     } catch (e) {
-      print(">>> Error during scan and connect: $e");
+      print("--- Error during scan and connect: $e");
       rethrow;
     } finally {
       await scanSubscription.cancel();
@@ -81,20 +116,36 @@ class BluetoothService {
     try {
       print(">>> Connecting to device: ${device.name}...");
 
-      // Listen for connection changes
-      final connectionStream = _ble.connectToDevice(id: device.id);
-      connectionStream.listen((event) {
-        print(">>> Connection state: ${event.connectionState}");
-      });
+      connectionSubscription =
+          _ble.connectToDevice(id: device.id).listen((event) {
+        if (event.connectionState == DeviceConnectionState.connected) {
+          _isConnected = true;
+          print("=== Device connected.");
 
-      gpsCharacteristic = QualifiedCharacteristic(
-        characteristicId: Uuid.parse(Constants.gpsCharacteristicUuid),
+          initializeCharacteristics(device);
+        } else if (event.connectionState ==
+            DeviceConnectionState.disconnected) {
+          _isConnected = false;
+          print("=== Device disconnected.");
+        }
+      });
+    } catch (e) {
+      print(">>> Error connecting to device: $e");
+      rethrow;
+    }
+  }
+
+  // Method to initialize characteristics
+  Future<void> initializeCharacteristics(DiscoveredDevice device) async {
+    try {
+      sosCharacteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.sosCharacteristicUuid),
         serviceId: Uuid.parse(Constants.serviceUuid),
         deviceId: device.id,
       );
 
-      sosCharacteristic = QualifiedCharacteristic(
-        characteristicId: Uuid.parse(Constants.sosCharacteristicUuid),
+      gpsCharacteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.gpsCharacteristicUuid),
         serviceId: Uuid.parse(Constants.serviceUuid),
         deviceId: device.id,
       );
@@ -111,38 +162,80 @@ class BluetoothService {
         deviceId: device.id,
       );
 
-      print("Device connected. Characteristics initialized.");
+      // Store them in the singleton
+      BluetoothDeviceManager().setCharacteristics(sosCharacteristic,
+          gpsCharacteristic, chatCharacteristic, weatherCharacteristic);
+
+      print("Device connected and characteristics initialized.");
     } catch (e) {
-      print(">>> Error connecting to device: $e");
-      rethrow;
+      print("Error initializing characteristics: $e");
     }
   }
 
   Future<void> sendGPSData(String gpsData) async {
+    final gpsCharacteristic = BluetoothDeviceManager().gpsCharacteristic;
     try {
-      await _ble.writeCharacteristicWithoutResponse(
-        gpsCharacteristic,
-        value: utf8.encode(gpsData),
-      );
-      print("GPS data sent to handle via bluetooth: $gpsData");
+      if (gpsCharacteristic != null) {
+        await _ble.writeCharacteristicWithoutResponse(
+          gpsCharacteristic,
+          value: utf8.encode(gpsData),
+        );
+        print("GPS data sent to ESP32: $gpsData");
+      } else {
+        throw Exception(
+            "Device not connected or GPS characteristic not initialized.");
+      }
     } catch (e) {
-      print("Error sending GPS data via bluetooth: $e");
+      print("Error sending GPS data: $e");
+    }
+  }
+
+  // Fetch SOS alerts from the SOS characteristic (BLE read)
+  Future<String> fetchSOSAlerts() async {
+    try {
+      // Check if the SOS characteristic is initialized
+      if (sosCharacteristic != null) {
+        final characteristicValue =
+            await _ble.readCharacteristic(sosCharacteristic);
+        String sosAlertsData = utf8.decode(characteristicValue);
+        print("SOS alerts data received from esp32: $sosAlertsData");
+        return sosAlertsData;
+      } else {
+        throw Exception("SOS characteristic is not initialized.");
+      }
+    } catch (e) {
+      print("Error fetching SOS alerts: $e");
+      return '';
     }
   }
 
   Future<void> sendSOSAlert(String sosData) async {
+    final sosCharacteristic = BluetoothDeviceManager().sosCharacteristic;
     try {
-      await _ble.writeCharacteristicWithoutResponse(
-        sosCharacteristic,
-        value: utf8.encode(sosData),
-      );
-      print("SOS alert sent to handle via bluetooth: $sosData");
+      // Ensure the device is connected and the characteristic is initialized
+      // if (!_isConnected) {
+      //   throw Exception("Bluetooth is not connected.");
+      // }
+
+      // Send SOS alert if the characteristic is initialized
+      if (sosCharacteristic != null) {
+        await _ble.writeCharacteristicWithoutResponse(
+          sosCharacteristic,
+          value: utf8.encode(sosData),
+        );
+        print("SOS alert sent via bluetooth: $sosData");
+      } else {
+        throw Exception("SOS characteristic is not initialized.");
+      }
     } catch (e) {
       print("Error sending SOS alert via bluetooth: $e");
     }
   }
 
   Future<void> sendChatMessage(String message) async {
+    print("Sending SOS alert via chat method...");
+    print("Chat Characteristic details: ");
+    print("UUID: ${chatCharacteristic.characteristicId}");
     try {
       await _ble.writeCharacteristicWithoutResponse(
         chatCharacteristic,
@@ -176,19 +269,6 @@ class BluetoothService {
         print("Error receiving chat messages: $e");
       },
     );
-  }
-
-  // Monitor BLE connection state
-  Future<void> monitorConnection(String deviceId) async {
-    connectionSubscription = _ble.connectToDevice(id: deviceId).listen((event) {
-      if (event.connectionState == DeviceConnectionState.disconnected) {
-        print(
-            "------------------------ Device disconnected. Attempting to reconnect...");
-        scanAndConnect();
-      } else if (event.connectionState == DeviceConnectionState.connected) {
-        print("------------------------ Device connected.");
-      }
-    });
   }
 
   // Cancel the connection subscription when no longer needed
