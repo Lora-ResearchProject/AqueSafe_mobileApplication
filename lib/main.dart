@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/dashboard.dart';
+import 'screens/hotspots.dart';
 import 'services/gps_scheduler_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/preferences_helper.dart';
@@ -24,8 +25,8 @@ void main() async {
   // final BluetoothService bluetoothService = BluetoothService();
   // bluetoothService.monitorConnection();
 
-  final BluetoothService bluetoothService = BluetoothService();
-  await bluetoothService.scanAndConnect();
+  // final BluetoothService bluetoothService = BluetoothService();
+  // await bluetoothService.scanAndConnect();
 
   // Start the GPS Scheduler
   final SchedulerService gpsScheduler = SchedulerService();
@@ -46,6 +47,7 @@ class AquaSafeApp extends StatelessWidget {
         '/login': (context) => LoginScreen(),
         '/register': (context) => RegisterScreen(),
         '/dashboard': (context) => Dashboard(),
+        '/hotspots': (context) => HotspotsScreen(),
       },
     );
   }

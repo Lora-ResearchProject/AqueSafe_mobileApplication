@@ -133,6 +133,9 @@ class Dashboard extends StatelessWidget {
                       icon: Icons.anchor,
                       label: 'Fishing Spots',
                       color: const Color.fromARGB(255, 36, 163, 183),
+                      onTap: () {
+                        Navigator.pushNamed(context, '/hotspots');
+                      },
                     ),
                     _buildQuickLinkCard(
                       icon: Icons.sos,
@@ -286,8 +289,8 @@ class Dashboard extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () =>
-                _sosTriggerService.handleConfirm(context, bluetoothService, ctx),
+            onPressed: () => _sosTriggerService.handleConfirm(
+                context, bluetoothService, ctx),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 18, 115, 194),
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),
