@@ -82,19 +82,22 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fishing Spots'),
-        backgroundColor: const Color(0xFF151d67),
+        title: const Text(
+          'Fishing Spots',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black),
+        elevation: 1,
       ),
       body: userLocation == null
           ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: CustomPaint(
-                size: const Size(400, 400),
-                painter: MapPainter(
-                  userLocation: userLocation,
-                  destinations: destinations,
-                  markerImage: markerImage,
-                ),
+          : CustomPaint(
+              size: MediaQuery.of(context).size, // Use the full available area
+              painter: MapPainter(
+                userLocation: userLocation,
+                destinations: destinations,
+                markerImage: markerImage,
               ),
             ),
     );
