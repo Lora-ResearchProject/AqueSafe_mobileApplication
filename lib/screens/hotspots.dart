@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 
@@ -19,12 +19,14 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
 
   Map<String, double>? userLocation;
   ui.Image? markerImage;
+  double arrowRotation = 0.0;
 
   @override
   void initState() {
     super.initState();
     _loadMarkerImage();
     _getCurrentLocation();
+    _initializeSensors();
   }
 
   Future<void> _loadMarkerImage() async {
@@ -42,39 +44,18 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Request the user to enable location services
-      await Geolocator.openLocationSettings();
-      return;
-    }
-
-    // Check location permissions
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Permissions are denied, show an error
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      // Permissions are denied forever, show an error
-      return;
-    }
-
-    // Get the user's current position
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
+    // Simulate user location for demonstration
     setState(() {
-      userLocation = {'lat': position.latitude, 'lng': position.longitude};
+      userLocation = {'lat': 0.0, 'lng': 0.0};
+    });
+  }
+
+  void _initializeSensors() {
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      // Calculate the rotation based on accelerometer data
+      setState(() {
+        arrowRotation = math.atan2(event.y, event.x);
+      });
     });
   }
 
@@ -93,11 +74,12 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
       body: userLocation == null
           ? const Center(child: CircularProgressIndicator())
           : CustomPaint(
-              size: MediaQuery.of(context).size, // Use the full available area
+              size: MediaQuery.of(context).size,
               painter: MapPainter(
                 userLocation: userLocation,
                 destinations: destinations,
                 markerImage: markerImage,
+                arrowRotation: arrowRotation,
               ),
             ),
     );
@@ -108,11 +90,13 @@ class MapPainter extends CustomPainter {
   final Map<String, double>? userLocation;
   final List<Map<String, double>> destinations;
   final ui.Image? markerImage;
+  final double arrowRotation;
 
   MapPainter({
     required this.userLocation,
     required this.destinations,
     this.markerImage,
+    required this.arrowRotation,
   });
 
   @override
@@ -145,8 +129,18 @@ class MapPainter extends CustomPainter {
     final double userX = scaleX(userLocation!['lng']!);
     final double userY = scaleY(userLocation!['lat']!);
 
-    // Draw user location
-    canvas.drawCircle(Offset(userX, userY), 5, Paint()..color = Colors.green);
+    // Draw the rotating arrow at the user's location
+    canvas.save();
+    canvas.translate(userX, userY);
+    canvas.rotate(arrowRotation);
+    final arrowPath = Path()
+      ..moveTo(0, -20) // Arrow tip
+      ..lineTo(-10, 10) // Left bottom
+      ..lineTo(10, 10) // Right bottom
+      ..close();
+
+    canvas.drawPath(arrowPath, Paint()..color = Colors.green);
+    canvas.restore();
 
     // Draw lines to each destination and display distances
     for (final destination in destinations) {
