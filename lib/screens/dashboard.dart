@@ -1,5 +1,4 @@
 import 'dart:convert';
-import '../screens/sos_alert_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -44,7 +43,7 @@ class _DashboardState extends State<Dashboard> {
 
       setState(() {
         sosMessage = 'SOS Alert in Progress';
-        sosTimeAgo = '$timeAgo ago';
+        sosTimeAgo = (timeAgo == 'now') ? 'now' : '$timeAgo ago';
         isSOSInProgress = true;
       });
     }
