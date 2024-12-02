@@ -4,36 +4,16 @@ import '../utils/bluetooth_device_manager.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/location_service.dart';
+import '../screens/dashboard.dart';
 // import 'dart:async';
 import 'dart:convert';
 
 class SOSTriggerService {
-  final BluetoothService _bluetoothService = BluetoothService();
   final LocationService _locationService = LocationService();
 
   void handleConfirm(BuildContext context, BluetoothService bluetoothService,
       BuildContext dialogContext) async {
     try {
-      // Check if Bluetooth is connected
-      // bool isConnected = bluetoothService.isConnected;
-      // if (true) {
-      //   showDialog(
-      //     context: context,
-      //     builder: (ctx) => AlertDialog(
-      //       title: const Text("Bluetooth Required"),
-      //       content:
-      //           const Text("Please enable Bluetooth to send an SOS alert."),
-      //       actions: [
-      //         TextButton(
-      //           onPressed: () => Navigator.of(ctx).pop(),
-      //           child: const Text("OK"),
-      //         ),
-      //       ],
-      //     ),
-      //   );
-      //   return;
-      // }
-
       // Access the device from the singleton
       DiscoveredDevice? device = BluetoothDeviceManager().device;
 
@@ -57,7 +37,7 @@ class SOSTriggerService {
       String longitude = position.longitude.toStringAsFixed(5);
 
       String sosData = jsonEncode(
-          {"id": "$vesselId-0000", "l": "$latitude-$longitude", "s": 1});
+          {"id": "$vesselId-0000", "l": "$latitude|$longitude", "s": 1});
 
       await bluetoothService.sendSOSAlert(sosData);
 
@@ -70,9 +50,14 @@ class SOSTriggerService {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(dialogContext).pop();
-              },
+              Navigator.of(ctx).pop();
+              Navigator.of(dialogContext).pop();
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => Dashboard()),
+              );
+            },
               child: const Text("OK"),
             ),
           ],
@@ -111,52 +96,61 @@ class SOSTriggerService {
   //   }
   // }
 
-  void _showConnectingDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Connecting"),
-        content: const Text("Connecting to Bluetooth device..."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("Cancel"),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showConnectingDialog(BuildContext context) {
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (ctx) => AlertDialog(
+  //       title: const Text("Connecting"),
+  //       content: const Text("Connecting to Bluetooth device..."),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.of(ctx).pop(),
+  //           child: const Text("Cancel"),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  void _showSuccessDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Success"),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showSuccessDialog(BuildContext context, String message, BuildContext dialogContex) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (ctx) => AlertDialog(
+  //       title: const Text("Success"),
+  //       content: Text(message),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () {
+  //             Navigator.of(ctx).pop();
+  //             Navigator.of(dialogContext).pop();
 
-  void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Error"),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
+  //             // Navigate to Dashboard to show the alert in progress
+  //             Navigator.pushReplacement(
+  //               context,
+  //               MaterialPageRoute(builder: (context) => Dashboard()),
+  //             );
+  //           },
+  //           child: const Text("OK"),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  // void _showErrorDialog(BuildContext context, String message) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (ctx) => AlertDialog(
+  //       title: const Text("Error"),
+  //       content: Text(message),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.of(ctx).pop(),
+  //           child: const Text("OK"),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 }
