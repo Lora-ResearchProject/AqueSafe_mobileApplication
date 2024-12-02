@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 
@@ -10,29 +11,23 @@ class HotspotsScreen extends StatefulWidget {
 }
 
 class _HotspotsScreenState extends State<HotspotsScreen> {
-  // Example array of lat/lng points (dummy data)
   final List<Map<String, double>> destinations = [
     {'lat': -18.2871, 'lng': 147.6992},
     {'lat': 34.0522, 'lng': -118.2437},
     {'lat': 51.5074, 'lng': -0.1278},
   ];
 
-  Map<String, double>? userLocation; // User's current location
+  Map<String, double>? userLocation;
   ui.Image? markerImage;
 
   @override
   void initState() {
     super.initState();
-    // Simulate fetching GPS location (replace with real GPS fetching logic)
-    userLocation = {
-      'lat': 0.0,
-      'lng': 0.0
-    }; // Replace with actual GPS fetching logic
     _loadMarkerImage();
+    _getCurrentLocation();
   }
 
   Future<void> _loadMarkerImage() async {
-    // Load the marker image
     final image = await _loadImage('assets/marker_vessel.png');
     setState(() {
       markerImage = image;
@@ -46,6 +41,43 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     return frame.image;
   }
 
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Request the user to enable location services
+      await Geolocator.openLocationSettings();
+      return;
+    }
+
+    // Check location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, show an error
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are denied forever, show an error
+      return;
+    }
+
+    // Get the user's current position
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    setState(() {
+      userLocation = {'lat': position.latitude, 'lng': position.longitude};
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,16 +85,18 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
         title: const Text('Fishing Spots'),
         backgroundColor: const Color(0xFF151d67),
       ),
-      body: Center(
-        child: CustomPaint(
-          size: const Size(400, 400), // Define map size
-          painter: MapPainter(
-            userLocation: userLocation,
-            destinations: destinations,
-            markerImage: markerImage,
-          ),
-        ),
-      ),
+      body: userLocation == null
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
+              child: CustomPaint(
+                size: const Size(400, 400),
+                painter: MapPainter(
+                  userLocation: userLocation,
+                  destinations: destinations,
+                  markerImage: markerImage,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -161,7 +195,6 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  /// Calculate the distance between two geographical points using the Haversine formula
   double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
     const double earthRadius = 6371; // Earth's radius in km
     final double dLat = _toRadians(lat2 - lat1);
@@ -181,6 +214,6 @@ class MapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true; // Repaint whenever user location or destinations change
+    return true;
   }
 }
