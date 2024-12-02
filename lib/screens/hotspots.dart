@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 
@@ -20,13 +22,20 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   Map<String, double>? userLocation;
   ui.Image? markerImage;
   double arrowRotation = 0.0;
+  late Timer _locationUpdateTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMarkerImage();
-    _getCurrentLocation();
     _initializeSensors();
+    _startLocationUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    _locationUpdateTimer.cancel();
+    super.dispose();
   }
 
   Future<void> _loadMarkerImage() async {
@@ -43,10 +52,40 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     return frame.image;
   }
 
-  Future<void> _getCurrentLocation() async {
-    // Simulate user location for demonstration
+  Future<void> _fetchCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
     setState(() {
-      userLocation = {'lat': 0.0, 'lng': 0.0};
+      userLocation = {'lat': position.latitude, 'lng': position.longitude};
+    });
+  }
+
+  void _startLocationUpdateTimer() {
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _fetchCurrentLocation();
     });
   }
 
