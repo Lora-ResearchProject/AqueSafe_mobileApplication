@@ -1,15 +1,57 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import '../services/sos_trigger_service.dart';
 import '../services/bluetooth_service.dart';
 import '../screens/sos_alerts_list.dart';
 
-class Dashboard extends StatelessWidget {
-  final SOSTriggerService _sosTriggerService;
+class Dashboard extends StatefulWidget {
+  const Dashboard({Key? key}) : super(key: key);
+
+  @override
+  _DashboardState createState() => _DashboardState();
+}
+
+class _DashboardState extends State<Dashboard> {
+  String sosMessage = '';
+  String sosTimeAgo = '';
+  bool isSOSInProgress = false;
+
+  // Initialize SOSTriggerService
+  final SOSTriggerService _sosTriggerService = SOSTriggerService();
   final BluetoothService _bluetoothService = BluetoothService();
 
-  Dashboard({Key? key})
-      : _sosTriggerService = SOSTriggerService(),
-        super(key: key);
+  @override
+  void initState() {
+    super.initState();
+    _loadSOSStatus();
+  }
+
+  // Load SOS status from SharedPreferences
+  Future<void> _loadSOSStatus() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? lastSOS = prefs.getString('lastSOS');
+
+    if (lastSOS != null) {
+      final sosData = jsonDecode(lastSOS);
+      final String timestamp = sosData['timestamp'];
+      final DateTime sosTime = DateTime.parse(timestamp);
+      //final DateTime now = DateTime.now();
+
+      final String timeAgo = timeago.format(sosTime, locale: 'en_short');
+
+      setState(() {
+        sosMessage = 'SOS Alert in Progress';
+        sosTimeAgo = (timeAgo == 'now') ? 'now' : '$timeAgo ago';
+        isSOSInProgress = true;
+      });
+    }
+  }
+
+  // Dashboard({Key? key})
+  //     : _sosTriggerService = SOSTriggerService(),
+  //       super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +83,7 @@ class Dashboard extends StatelessWidget {
               Center(
                 child: ElevatedButton(
                   onPressed: () {
-                    _showSOSConfirmationDialog(context, _bluetoothService);
+                    _showSOSConfirmationDialog(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -75,40 +117,80 @@ class Dashboard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C3D72),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+
+              if (isSOSInProgress)
+                GestureDetector(
+                  // onTap: () {
+                  //   Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //         builder: (context) => SOSAlertDetailsScreen()),
+                  //   );
+                  // },
+                  child: Container(
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(
+                          255, 95, 14, 14), // Dark red background
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            // Info Icon
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+
+                            // SOS Alert Text
+                            Expanded(
+                              child: Text(
+                                'SOS Alert in Progress',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                            // Active Status
+                            CircleAvatar(
+                              backgroundColor: Colors.green,
+                              radius: 8,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const SizedBox(width: 36),
+                            Text(
+                              sosTimeAgo,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    NotificationItem(
-                      icon: Icons.sunny,
-                      message:
-                          'A sunny day in your location. Wear UV protection.',
-                    ),
-                    SizedBox(height: 8),
-                    NotificationItem(
-                      icon: Icons.cloud,
-                      message: 'A cloudy day all day long. No rain expected.',
-                    ),
-                    SizedBox(height: 8),
-                    NotificationItem(
-                      icon: Icons.warning,
-                      message: 'Strong winds expected. Stay cautious.',
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 20),
 
               // Quick Links
@@ -240,8 +322,7 @@ class Dashboard extends StatelessWidget {
     );
   }
 
-  void _showSOSConfirmationDialog(
-      BuildContext context, BluetoothService bluetoothService) {
+  void _showSOSConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false, // Prevent dismissal by tapping outside
@@ -286,8 +367,8 @@ class Dashboard extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () =>
-                _sosTriggerService.handleConfirm(context, bluetoothService, ctx),
+            onPressed: () => _sosTriggerService.handleConfirm(
+                context, _bluetoothService, ctx),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 18, 115, 194),
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),

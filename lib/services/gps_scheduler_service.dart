@@ -40,7 +40,7 @@ class SchedulerService {
 
           String gpsData = jsonEncode({
             "id": "$vesselId-0000",
-            "l": "$latitude-$longitude",
+            "l": "$latitude|$longitude",
           });
 
           await _bluetoothService.sendGPSData(gpsData);

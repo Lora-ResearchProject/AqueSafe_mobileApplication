@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/bluetooth_device_manager.dart';
 
@@ -192,6 +193,7 @@ class BluetoothService {
 
   // Fetch SOS alerts from the SOS characteristic (BLE read)
   Future<String> fetchSOSAlerts() async {
+    final sosCharacteristic = BluetoothDeviceManager().sosCharacteristic;
     try {
       // Check if the SOS characteristic is initialized
       if (sosCharacteristic != null) {
@@ -224,6 +226,19 @@ class BluetoothService {
           value: utf8.encode(sosData),
         );
         print("SOS alert sent via bluetooth: $sosData");
+
+        // Store SOS data in SharedPreferences
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        final Map<String, dynamic> sosDataMap = jsonDecode(sosData);
+        await prefs.setString(
+            'lastSOS',
+            jsonEncode({
+              'id': sosDataMap['id'],
+              'latitude': sosDataMap['l'].split('|')[0],
+              'longitude': sosDataMap['l'].split('|')[1],
+              'status': 'Active', // SOS status
+              'timestamp': DateTime.now().toIso8601String()
+            }));
       } else {
         throw Exception("SOS characteristic is not initialized.");
       }
