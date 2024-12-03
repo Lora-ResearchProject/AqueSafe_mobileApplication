@@ -215,6 +215,9 @@ class _DashboardState extends State<Dashboard> {
                       icon: Icons.anchor,
                       label: 'Fishing Spots',
                       color: const Color.fromARGB(255, 36, 163, 183),
+                      onTap: () {
+                        Navigator.pushNamed(context, '/hotspots');
+                      },
                     ),
                     _buildQuickLinkCard(
                       icon: Icons.sos,
