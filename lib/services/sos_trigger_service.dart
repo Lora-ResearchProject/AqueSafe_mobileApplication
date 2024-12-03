@@ -1,3 +1,4 @@
+import 'package:aqua_safe/services/generate_unique_id_service.dart';
 import 'package:flutter/material.dart';
 import 'bluetooth_service.dart';
 import '../utils/bluetooth_device_manager.dart';
@@ -34,8 +35,15 @@ class SOSTriggerService {
       String latitude = position.latitude.toStringAsFixed(5);
       String longitude = position.longitude.toStringAsFixed(5);
 
-      String sosData = jsonEncode(
-          {"id": "$vesselId-0000", "l": "$latitude|$longitude", "s": 1});
+      // Generate a unique ID using the GenerateUniqueIdService
+      GenerateUniqueIdService idService = GenerateUniqueIdService();
+      String uniqueMsgId = idService.generateId();
+
+      String sosData = jsonEncode({
+        "id": "$vesselId-$uniqueMsgId",
+        "l": "$latitude|$longitude",
+        "s": 1
+      });
 
       await bluetoothService.sendSOSAlert(sosData);
 
@@ -48,14 +56,14 @@ class SOSTriggerService {
           actions: [
             TextButton(
               onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(dialogContext).pop();
+                Navigator.of(ctx).pop();
+                Navigator.of(dialogContext).pop();
 
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => Dashboard()),
-              );
-            },
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => Dashboard()),
+                );
+              },
               child: const Text("OK"),
             ),
           ],
