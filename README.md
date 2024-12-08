@@ -12,7 +12,7 @@
 
 
 ## System Architechture Diagram
-![MobileAppSystemDiagram](https://github.com/user-attachments/assets/8ef77460-4a9d-48ef-a6b6-54f748115bfb)
+![MobileAppSystemDiagram](/assets/system_diagram.png)
 
 *Figure 1: AquaSafe Mobile App System Architecture*
 
