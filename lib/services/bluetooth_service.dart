@@ -211,7 +211,7 @@ class BluetoothService {
     }
   }
 
-  Future<void> sendSOSAlert(String sosData) async {
+  Future<void> sendSOSAlert(String sosData, Function onUpdate) async {
     final sosCharacteristic = BluetoothDeviceManager().sosCharacteristic;
     try {
       // Ensure the device is connected and the characteristic is initialized
@@ -239,6 +239,11 @@ class BluetoothService {
               'status': 'Active', // SOS status
               'timestamp': DateTime.now().toIso8601String()
             }));
+
+        print("Latest SOS data saved locally.");
+
+        // Trigger the UI update
+        onUpdate();
       } else {
         throw Exception("SOS characteristic is not initialized.");
       }

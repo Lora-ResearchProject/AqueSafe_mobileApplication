@@ -8,6 +8,8 @@ import 'services/gps_scheduler_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/preferences_helper.dart';
 import '../services/bluetooth_service.dart';
+import 'screens/edit_account.dart';
+import 'screens/change_password.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +41,8 @@ class AquaSafeApp extends StatelessWidget {
         '/dashboard': (context) => Dashboard(),
         '/hotspots': (context) => HotspotsScreen(),
         '/splash': (context) => SplashScreen(),
+        '/edit_account': (context) => const EditAccountScreen(),
+        '/change_password': (context) => const ChangePasswordScreen(),
       },
     );
   }
