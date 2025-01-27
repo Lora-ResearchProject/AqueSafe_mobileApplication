@@ -1,8 +1,11 @@
+import 'package:aqua_safe/utils/snack_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For encoding/decoding JSON
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../utils/snack_bar.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -31,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Function to handle user login
   Future<void> _loginUser() async {
     final String email = _emailController.text.trim();
     final String password = _passwordController.text.trim();
@@ -52,11 +54,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final Uri url = Uri.parse('$baseUrl/vessel-auth/vessel-login/');
+    final Uri loginUrl = Uri.parse('$baseUrl/vessel-auth/vessel-login/');
 
     try {
       final response = await http.post(
-        url,
+        loginUrl,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
@@ -70,30 +72,78 @@ class _LoginScreenState extends State<LoginScreen> {
         if (responseData['message'] == 'Login successful') {
           final vesselId = responseData['vesselId'];
 
-          // Save vesselId in SharedPreferences
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('vesselId', vesselId);
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login successful!')),
-          );
-
-          // Navigate to the dashboard
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          // Check if the required vesselId is present
+          if (vesselId != null) {
+            await _fetchVesselDetailsAndCache(vesselId, password);
+          } else {
+            SnackbarUtils.showErrorMessage(
+                context, 'Login failed: Incomplete user data.');
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(responseData['message'] ?? 'Login failed.')),
-          );
+          SnackbarUtils.showErrorMessage(context, 'Login failed');
         }
       } else {
+        SnackbarUtils.showErrorMessage(context, 'Invalid email or password.');
+      }
+    } catch (e) {
+      SnackbarUtils.showErrorMessage(context, 'An error occurred: $e');
+    }
+  }
+
+  Future<void> _fetchVesselDetailsAndCache(
+      String vesselId, String password) async {
+    final String? baseUrl = dotenv.env['MAIN_API_BASE_URL'];
+    if (baseUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API base URL not configured.')),
+      );
+      return;
+    }
+
+    final Uri getVesselUrl = Uri.parse('$baseUrl/vessel-auth/$vesselId');
+
+    try {
+      final response = await http.get(
+        getVesselUrl,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      debugPrint(
+          "API Response: ${response.statusCode}, Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final vesselData = json.decode(response.body);
+
+        final vesselName = vesselData['vesselName'];
+        final vesselEmail = vesselData['email'];
+
+        if (vesselName != null && vesselEmail != null) {
+          // Save vessel details in SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          final storage = const FlutterSecureStorage();
+
+          await prefs.setString('vesselId', vesselId);
+          await prefs.setString('vesselName', vesselName);
+          await prefs.setString('vesselEmail', vesselEmail);
+          await storage.write(key: 'vesselPassword', value: password);
+
+          SnackbarUtils.showSuccessMessage(context, 'Login successful!');
+
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        } else {
+          SnackbarUtils.showErrorMessage(
+              context, 'Failed to retrieve vessel details.');
+        }
+      } else {
+        debugPrint(
+            "Failed Response: ${response.statusCode}, Body: ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid email or password.')),
+          const SnackBar(content: Text('Failed to fetch vessel details.')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred: $e')),
-      );
+      SnackbarUtils.showErrorMessage(
+          context, 'An error occurred while fetching details: $e');
     }
   }
 
