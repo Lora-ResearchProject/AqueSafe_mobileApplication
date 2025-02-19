@@ -39,7 +39,7 @@ class SchedulerService {
           String longitude = position.longitude.toStringAsFixed(5);
 
           String gpsData = jsonEncode({
-            "id": "$vesselId-0000",
+            "id": "$vesselId",
             "l": "$latitude|$longitude",
           });
 

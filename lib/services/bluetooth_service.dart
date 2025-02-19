@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/bluetooth_device_manager.dart';
+import '../utils/appStateManager.dart';
 
 class BluetoothService {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
@@ -227,22 +228,23 @@ class BluetoothService {
         );
         print("SOS alert sent via bluetooth: $sosData");
 
-        // Store SOS data in SharedPreferences
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
         final Map<String, dynamic> sosDataMap = jsonDecode(sosData);
-        await prefs.setString(
-            'lastSOS',
-            jsonEncode({
-              'id': sosDataMap['id'],
-              'latitude': sosDataMap['l'].split('|')[0],
-              'longitude': sosDataMap['l'].split('|')[1],
-              'status': 'Active', // SOS status
-              'timestamp': DateTime.now().toIso8601String()
-            }));
+        
+        // Create the SOS object with additional fields
+        Map<String, dynamic> formattedSOSData = {
+          'id': sosDataMap['id'],
+          'latitude': sosDataMap['l'].split('|')[0],
+          'longitude': sosDataMap['l'].split('|')[1],
+          'status': 'Active',
+          'timestamp': DateTime.now().toIso8601String(),
+        };
 
-        print("Latest SOS data saved locally.");
+        // Save to State Manager
+        AppStateManager().setLatestSOS(formattedSOSData);
 
-        // Trigger the UI update
+        // Save to SharedPreferences (for persistence)
+        await AppStateManager().saveSOSToLocal();
+        print("✅ Latest SOS saved in State Manager and SharedPreferences.");
         onUpdate();
       } else {
         throw Exception("SOS characteristic is not initialized.");
