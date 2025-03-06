@@ -13,6 +13,8 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        //maven { url 'https://maven.transistorsoft.com' } // ✅ 
+        //maven { url 'https://jitpack.io' } // ✅
     }
 }
 
@@ -23,3 +25,14 @@ plugins {
 }
 
 include ":app"
+
+// ✅ newly added after find dependencyResolutionManagement not there. if not need then remove directly
+// dependencyResolutionManagement {
+//     repositories {
+//         google()
+//         mavenCentral()
+//         gradlePluginPortal()
+//         maven { url 'https://jitpack.io' } 
+//         maven { url 'https://maven.transistorsoft.com' }
+//     }
+// }
