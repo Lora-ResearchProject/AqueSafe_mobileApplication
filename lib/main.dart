@@ -14,16 +14,11 @@ import 'screens/change_password.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  // Initialize SharedPreferences
   await SharedPreferences.getInstance();
-
-  // Log all SharedPreferences
   PreferencesHelper.printSharedPreferences();
 
-  // Run the app
   runApp(const AquaSafeApp());
 }
 
@@ -57,7 +52,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _isLoading = true;
-  String _loadingMessage = "Connecting to Bluetooth...";
+  bool _gpsStarted = false;
+  String _loadingMessage = "Initializing Services...";
 
   @override
   void initState() {
@@ -75,59 +71,54 @@ class _SplashScreenState extends State<SplashScreen> {
         return;
       }
 
-      // If vesselId exists, proceed with the Bluetooth and GPS Scheduler initialization
-      setState(() {
-        _isLoading = true;
-        _loadingMessage = "Connecting to Bluetooth...";
-      });
-
-      // Initialize Bluetooth service
+      setState(() => _loadingMessage = "Connecting to Bluetooth...");
       final BluetoothService bluetoothService = BluetoothService();
-      await bluetoothService.scanAndConnect();
-
-      setState(() {
-        _loadingMessage = "Successfully Connected to bluetooth";
-      });
-
-      await Future.delayed(const Duration(seconds: 3));
-
-      // Show loading state before starting scheduler
-      setState(() {
-        _loadingMessage = "Starting GPS Scheduler...";
-      });
-
-      // Start the GPS Scheduler
-      final SchedulerService gpsScheduler = SchedulerService();
-      await gpsScheduler.startScheduler();
-
-      setState(() {
-        _loadingMessage = "Successfully started GPS scheduler";
-      });
-
-      await Future.delayed(const Duration(seconds: 3));
-
-      setState(() {
-        _loadingMessage = "Directing to dashboard...";
-      });
-
+      Future<bool> bleConnection = bluetoothService.scanAndConnect();
       await Future.delayed(const Duration(seconds: 2));
 
-      // Once initialization is done, navigate to the Dashboard
-      if (mounted) {
+      setState(() => _loadingMessage = "Starting GPS Scheduler...");
+      await Future.delayed(const Duration(seconds: 2));
+
+      final SchedulerService gpsScheduler = SchedulerService();
+      await gpsScheduler.startScheduler().then((_) {
         setState(() {
-          _isLoading = false;
+          _gpsStarted = true;
+          _loadingMessage = "✅ GPS Scheduler started successfully";
         });
-        Navigator.pushReplacementNamed(context, '/dashboard');
+      }).catchError((error) {
+        setState(() {
+          _gpsStarted = false;
+          _loadingMessage = "⚠️ GPS Scheduler Failed";
+        });
+      });
+      await Future.delayed(const Duration(seconds: 2));
+
+      bool bluetoothConnected = await bleConnection;
+
+      if (!bluetoothConnected) {
+        setState(() {
+          _loadingMessage = "⚠️ Bluetooth Failed. Reconnect in Dashboard.";
+        });
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        });
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _loadingMessage = "Connection failed: \n ${e.toString()}";
+          _loadingMessage = "❌ Initialization Failed";
         });
-
-        await Future.delayed(const Duration(seconds: 5));
-
+        await Future.delayed(const Duration(seconds: 2));
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
     }

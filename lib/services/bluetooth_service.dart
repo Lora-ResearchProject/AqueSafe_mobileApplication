@@ -1,13 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/bluetooth_device_manager.dart';
 import '../utils/appStateManager.dart';
+// import 'package:android_intent_plus/android_intent.dart';
+// import 'package:android_intent_plus/flag.dart';
 
 class BluetoothService {
+  // ✅ Singleton instance
+  static final BluetoothService _instance = BluetoothService._internal();
+
+  factory BluetoothService() {
+    return _instance;
+  }
+
+  BluetoothService._internal(); // Private constructor
+
   final FlutterReactiveBle _ble = FlutterReactiveBle();
 
   late QualifiedCharacteristic gpsCharacteristic;
@@ -22,60 +33,84 @@ class BluetoothService {
   bool get isConnected => _isConnected;
   DiscoveredDevice? discoveredDevice;
 
-  // check connection state manually
-  Future<bool> checkConnectionState() async {
-    try {
-      return _isConnected;
-    } catch (e) {
-      print("Error checking Bluetooth connection state: $e");
-      return false;
-    }
-  }
+  // ✅ Use ValueNotifier to notify UI when connection status changes
+  final ValueNotifier<bool> isConnectedNotifier = ValueNotifier<bool>(false);
 
-  // Monitor connection continuously every 5 seconds
+  // Future<bool> checkConnectionState() async {
+  //   return _isConnected;
+  // }
+
+  // ✅ Monitor connection every 5 seconds and notify listeners
+  // void monitorConnection() {
+  //   int count = 0;
+  //   Timer.periodic(const Duration(seconds: 1), (timer) async {
+  //     count++;
+  //     print("🔄 BLE connection check run #$count");
+
+  //     bool isConnectedNow = await checkConnectionState();
+
+  //     print("Is connected: $isConnected | Is Connected Now: $isConnectedNow");
+
+  //     if (_isConnected != isConnectedNow) {
+  //       _isConnected = isConnectedNow;
+  //       isConnectedNotifier.value = _isConnected; // Notify UI
+  //       print("📢 Notify changed");
+  //     }
+  //   });
+  // }
+
   void monitorConnection() {
-    Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        if (!_isConnected) {
-          // print("Bluetooth is disconnected. Attempting to reconnect...");
-          // await scanAndConnect();
-        } else {
-          print("Bluetooth is connected.");
-        }
-      } catch (e) {
-        print("Error monitoring Bluetooth connection: $e");
+    _ble.statusStream.listen((status) {
+      bool isConnectedNow = (status == BleStatus.ready) && _isConnected;
+
+      if (_isConnected != isConnectedNow) {
+        _isConnected = isConnectedNow;
+        isConnectedNotifier.value = _isConnected;
+        print("📢 BLE Connection Status Changed: $_isConnected");
       }
     });
   }
 
   Future<void> requestPermissions() async {
-    if (await Permission.location.isDenied ||
-        await Permission.bluetooth.isDenied ||
-        await Permission.bluetoothScan.isDenied ||
-        await Permission.bluetoothConnect.isDenied) {
-      var status = await [
-        Permission.location,
-        Permission.bluetooth,
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-      ].request();
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetooth,
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+      // Permission.locationAlways,
+      // Permission.ignoreBatteryOptimizations,
+    ].request();
 
-      if (status[Permission.location]?.isDenied ?? true) {
-        throw Exception("Location permission denied.");
-      }
-      // if (status[Permission.bluetooth]?.isDenied ?? true) {
-      //   throw Exception("Bluetooth permission denied.");
-      // }
-      if (status[Permission.bluetoothScan]?.isDenied ?? true) {
-        throw Exception("Bluetooth Scan permission denied.");
-      }
-      if (status[Permission.bluetoothConnect]?.isDenied ?? true) {
-        throw Exception("Bluetooth Connect permission denied.");
-      }
+    // if (statuses[Permission.bluetooth]?.isDenied ?? true) {
+    //   throw Exception("❌ Bluetooth permission denied.");
+    // }
+    if (statuses[Permission.bluetoothScan]?.isDenied ?? true) {
+      throw Exception("❌ Bluetooth Scan permission denied.");
     }
+    if (statuses[Permission.bluetoothConnect]?.isDenied ?? true) {
+      throw Exception("❌ Bluetooth Connect permission denied.");
+    }
+    if (statuses[Permission.location]?.isDenied ?? true) {
+      throw Exception(
+          "❌ Location permission denied. BLE requires location access.");
+    }
+    // if (statuses[Permission.locationAlways]?.isDenied ?? true) {
+    //   throw Exception(
+    //       "❌ Background location permission denied. App cannot send GPS data in background.");
+    // }
+
+    // if (statuses[Permission.ignoreBatteryOptimizations]?.isDenied ?? true) {
+    //   final intent = AndroidIntent(
+    //     action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+    //     data: 'package:com.example.aqua_safe',
+    //     flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    //   );
+    //   await intent.launch();
+    //   throw Exception("❌ Ignore Battery Optimizations denied.");
+    // }
   }
 
-  Future<void> scanAndConnect() async {
+  Future<bool> scanAndConnect() async {
     await requestPermissions();
 
     late StreamSubscription<DiscoveredDevice> scanSubscription;
@@ -87,7 +122,7 @@ class BluetoothService {
           withServices: [Uuid.parse(Constants.serviceUuid)]).listen(
         (device) async {
           if (device.name == "ESP32-MultiService") {
-            print("Target ESP32 device found. Connecting...");
+            print("✅ Target ESP32 device found. Connecting...");
             deviceFound = true;
 
             await scanSubscription.cancel();
@@ -101,14 +136,16 @@ class BluetoothService {
         },
       );
 
-      await Future.delayed(const Duration(seconds: 20));
+      await Future.delayed(const Duration(seconds: 5));
 
       if (!deviceFound) {
-        throw Exception("Target ESP32 device not found during scan.");
+        print("⚠️ Target ESP32 device not found during scan.");
+        return false;
       }
+      return true;
     } catch (e) {
       print("--- Error during scan and connect: $e");
-      rethrow;
+      return false;
     } finally {
       await scanSubscription.cancel();
     }
@@ -119,16 +156,22 @@ class BluetoothService {
       print(">>> Connecting to device: ${device.name}...");
 
       connectionSubscription =
-          _ble.connectToDevice(id: device.id).listen((event) {
+          _ble.connectToDevice(id: device.id).listen((event) async {
         if (event.connectionState == DeviceConnectionState.connected) {
           _isConnected = true;
           print("=== Device connected.");
-
           initializeCharacteristics(device);
+
+          // ✅ Request higher MTU (maximum 512 bytes, but actual depends on ESP32)
+          int requestedMTU = 250;
+          int mtu =
+              await _ble.requestMtu(deviceId: device.id, mtu: requestedMTU);
+          print("🔄 Requested MTU: $mtu");
         } else if (event.connectionState ==
             DeviceConnectionState.disconnected) {
           _isConnected = false;
-          print("=== Device disconnected.");
+          print("=== Device disconnected. Retrying...");
+          // Future.delayed(Duration(seconds: 3), scanAndConnect); // Retry after 3s
         }
       });
     } catch (e) {
@@ -229,7 +272,7 @@ class BluetoothService {
         print("SOS alert sent via bluetooth: $sosData");
 
         final Map<String, dynamic> sosDataMap = jsonDecode(sosData);
-        
+
         // Create the SOS object with additional fields
         Map<String, dynamic> formattedSOSData = {
           'id': sosDataMap['id'],

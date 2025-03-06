@@ -42,3 +42,9 @@ android {
 flutter {
     source = "../.."
 }
+
+// dependencies {
+//     implementation("androidx.core:core-ktx:1.9.0") // ✅ Required for compatibility
+//     implementation("com.transistorsoft:tsbackgroundfetch:3.1.6")  // ✅ Added TransistorSoft dependency
+//     implementation("com.transistorsoft:tslocationmanager:4.12.0") // ✅ Added TransistorSoft dependency
+// }
