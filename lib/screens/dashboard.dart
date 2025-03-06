@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:aqua_safe/screens/sos_alert_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -6,6 +7,7 @@ import '../services/sos_trigger_service.dart';
 import '../services/bluetooth_service.dart';
 import '../screens/sos_alerts_list.dart';
 import '../screens/settings.dart';
+import '../utils/appStateManager.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({Key? key}) : super(key: key);
@@ -29,49 +31,58 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
-    _loadSOSStatus();
+    print(AppStateManager().isSOSInProgress);
+    print(AppStateManager().sosTimeAgo);
+    print(AppStateManager().status);
+    // _loadSOSStatus();
 
     _screens = [
-      // Builder(builder: (context) => _buildDashboardContent(context)),
       _buildDashboardContent(),
       const SettingsScreen(),
     ];
   }
 
-  // Load SOS status from SharedPreferences
   Future<void> _loadSOSStatus() async {
-    // setState(() {
-    //   isLoading = true;
-    // });
-
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? lastSOS = prefs.getString('lastSOS');
-
-    if (lastSOS != null) {
-      final sosData = jsonDecode(lastSOS);
-      final String timestamp = sosData['timestamp'];
-      final DateTime sosTime = DateTime.parse(timestamp);
-
-      final String timeAgo = timeago.format(sosTime, locale: 'en_short');
-
-      setState(() {
-        sosMessage = 'SOS Alert in Progress';
-        sosTimeAgo = (timeAgo == 'now') ? 'now' : '$timeAgo ago';
-        isSOSInProgress = true;
-      });
-    } 
-    
+    await AppStateManager().loadSOSFromLocal();
     setState(() {
-      isLoading = false; // Stop loading after status is fetched
+      isLoading = false;
     });
-
-    print("-------- Latest Sos----------");
-      print(sosMessage);
-      print(sosTimeAgo);
-      print(isSOSInProgress);
-      print(isLoading);
-      print("-----------------------------");
   }
+
+  // Load SOS status from SharedPreferences
+  // Future<void> _loadSOSStatus() async {
+  //   // setState(() {
+  //   //   isLoading = true;
+  //   // });
+
+  //   final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   final String? lastSOS = prefs.getString('lastSOS');
+
+  //   if (lastSOS != null) {
+  //     final sosData = jsonDecode(lastSOS);
+  //     final String timestamp = sosData['timestamp'];
+  //     final DateTime sosTime = DateTime.parse(timestamp);
+
+  //     final String timeAgo = timeago.format(sosTime, locale: 'en_short');
+
+  //     setState(() {
+  //       sosMessage = 'SOS Alert in Progress';
+  //       sosTimeAgo = (timeAgo == 'now') ? 'now' : '$timeAgo ago';
+  //       isSOSInProgress = true;
+  //     });
+  //   }
+
+  //   setState(() {
+  //     isLoading = false; // Stop loading after status is fetched
+  //   });
+
+  //   print("-------- Latest Sos----------");
+  //   print(sosMessage);
+  //   print(sosTimeAgo);
+  //   print(isSOSInProgress);
+  //   print(isLoading);
+  //   print("-----------------------------");
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +119,7 @@ class _DashboardState extends State<Dashboard> {
 
   /// Build Dashboard Content (Home Screen)
   Widget _buildDashboardContent() {
-     if (isLoading) {
+    if (isLoading) {
       // Show a loading indicator while data is being loaded
       return Scaffold(
         backgroundColor: const Color(0xFF151d67),
@@ -177,8 +188,14 @@ class _DashboardState extends State<Dashboard> {
             ),
             const SizedBox(height: 10),
 
-            if (isSOSInProgress)
+            if (AppStateManager().isSOSInProgress)
               GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => SOSDetailView()),
+                  );
+                },
                 child: Container(
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
@@ -225,7 +242,7 @@ class _DashboardState extends State<Dashboard> {
                         children: [
                           const SizedBox(width: 36),
                           Text(
-                            sosTimeAgo,
+                            AppStateManager().sosTimeAgo ?? "Unknown",
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
