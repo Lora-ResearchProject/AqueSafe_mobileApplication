@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:aqua_safe/cards/bluetooth_warning_card.dart';
 import 'package:aqua_safe/screens/sos_alert_details_screen.dart';
+import 'package:aqua_safe/utils/bluetooth_device_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../services/sos_trigger_service.dart';
@@ -18,12 +19,11 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  int _currentIndex = 0; // Tracks the currently selected tab
+  int _currentIndex = 0;
   String sosMessage = '';
   String sosTimeAgo = '';
   bool isSOSInProgress = true;
   bool isLoading = false;
-  bool _isBluetoothConnected = true; // state to track BLE connection
   late List<Widget> _screens;
 
   // Initialize services

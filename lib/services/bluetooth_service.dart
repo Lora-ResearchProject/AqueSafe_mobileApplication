@@ -28,12 +28,10 @@ class BluetoothService {
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
 
-  // Global state to manage Bluetooth connection
   bool _isConnected = false;
   bool get isConnected => _isConnected;
   DiscoveredDevice? discoveredDevice;
 
-  // ✅ Use ValueNotifier to notify UI when connection status changes
   final ValueNotifier<bool> isConnectedNotifier = ValueNotifier<bool>(false);
 
   // Future<bool> checkConnectionState() async {
@@ -171,7 +169,6 @@ class BluetoothService {
             DeviceConnectionState.disconnected) {
           _isConnected = false;
           print("=== Device disconnected. Retrying...");
-          // Future.delayed(Duration(seconds: 3), scanAndConnect); // Retry after 3s
         }
       });
     } catch (e) {
@@ -180,7 +177,6 @@ class BluetoothService {
     }
   }
 
-  // Method to initialize characteristics
   Future<void> initializeCharacteristics(DiscoveredDevice device) async {
     try {
       sosCharacteristic = QualifiedCharacteristic(
@@ -207,7 +203,6 @@ class BluetoothService {
         deviceId: device.id,
       );
 
-      // Store them in the singleton
       BluetoothDeviceManager().setCharacteristics(sosCharacteristic,
           gpsCharacteristic, chatCharacteristic, weatherCharacteristic);
 
@@ -231,7 +226,7 @@ class BluetoothService {
             "Device not connected or GPS characteristic not initialized.");
       }
     } catch (e) {
-      print("Error sending GPS data: $e");
+      print("Error sending GPS data: ${e.toString().split(':').last.trim()}");
     }
   }
 
