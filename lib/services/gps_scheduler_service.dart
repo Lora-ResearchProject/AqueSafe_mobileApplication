@@ -7,11 +7,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
 class SchedulerService {
+  static final SchedulerService _instance = SchedulerService._internal();
+  factory SchedulerService() => _instance;
+  SchedulerService._internal();
+
   final LocationService _locationService = LocationService();
   final BluetoothService _bluetoothService = BluetoothService();
   Timer? _gpsTimer;
 
+  bool _isRunning = false;
+
   Future<void> startScheduler() async {
+    if (_isRunning) {
+      print("⚠️ GPS Scheduler is already running.");
+      return;
+    }
+    _isRunning = true;
+
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? vesselId = prefs.getString('vesselId');
@@ -19,7 +31,7 @@ class SchedulerService {
         throw Exception("❌ Vessel ID not found in SharedPreferences");
       }
 
-      _gpsTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      _gpsTimer = Timer.periodic(const Duration(seconds: 8), (timer) async {
         try {
           var position = await _locationService.getCurrentPosition();
           String latitude = position.latitude.toStringAsFixed(5);
@@ -36,14 +48,17 @@ class SchedulerService {
         }
       });
 
-      print("GPS Scheduler was started successfully.");
+      print("✅ GPS Scheduler was started successfully.");
     } catch (e) {
       print("❌ Error initializing GPS Scheduler: $e");
     }
   }
 
   void stopScheduler() {
-    _gpsTimer?.cancel();
-    print("🛑 GPS Scheduler stopped.");
+    if (_isRunning) {
+      _gpsTimer?.cancel();
+      _isRunning = false;
+      print("🛑 GPS Scheduler stopped.");
+    }
   }
 }

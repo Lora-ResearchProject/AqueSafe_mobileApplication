@@ -78,14 +78,12 @@ class _SplashScreenState extends State<SplashScreen> {
       final BluetoothService bluetoothService = BluetoothService();
       Future<bool> bleConnection = bluetoothService.scanAndConnect();
 
-      final SchedulerService gpsScheduler = SchedulerService();
-      Future<void> gpsStart = gpsScheduler.startScheduler();
 
       final SOSHistoryScheduler sosScheduler = SOSHistoryScheduler();
       sosScheduler.startScheduler(); 
 
       // Wait for both to finish
-      await Future.wait([gpsStart, bleConnection]);
+      await Future.wait([bleConnection]);
 
       bool bluetoothConnected = await bleConnection;
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:aqua_safe/services/gps_scheduler_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -160,6 +161,8 @@ class BluetoothService {
           print("=== Device connected.");
           initializeCharacteristics(device);
 
+          await SchedulerService().startScheduler();
+
           // ✅ Request higher MTU (maximum 512 bytes, but actual depends on ESP32)
           int requestedMTU = 250;
           int mtu =
@@ -169,6 +172,7 @@ class BluetoothService {
             DeviceConnectionState.disconnected) {
           _isConnected = false;
           print("=== Device disconnected. Retrying...");
+          SchedulerService().stopScheduler();
         }
       });
     } catch (e) {
@@ -216,7 +220,7 @@ class BluetoothService {
     final gpsCharacteristic = BluetoothDeviceManager().gpsCharacteristic;
     try {
       if (gpsCharacteristic != null) {
-        await _ble.writeCharacteristicWithoutResponse(
+        await _ble.writeCharacteristicWithResponse(
           gpsCharacteristic,
           value: utf8.encode(gpsData),
         );
@@ -227,6 +231,7 @@ class BluetoothService {
       }
     } catch (e) {
       print("Error sending GPS data: ${e.toString().split(':').last.trim()}");
+      print("Write failed: $e");
     }
   }
 
