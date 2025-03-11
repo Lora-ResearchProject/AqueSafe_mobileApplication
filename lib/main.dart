@@ -1,3 +1,4 @@
+import 'package:aqua_safe/screens/weather_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login.dart';
@@ -10,6 +11,7 @@ import 'utils/preferences_helper.dart';
 import '../services/bluetooth_service.dart';
 import 'screens/edit_account.dart';
 import 'screens/change_password.dart';
+import '../services/sos_history_scheduler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +40,7 @@ class AquaSafeApp extends StatelessWidget {
         '/splash': (context) => SplashScreen(),
         '/edit_account': (context) => const EditAccountScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
+        '/weather': (context) => (const WeatherScreen())
       },
     );
   }
@@ -52,9 +55,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _isLoading = true;
-  bool _gpsStarted = false;
-  String _loadingMessage = "Initializing Services...";
-
+  String _loadingMessage = "Starting Services...";
   @override
   void initState() {
     super.initState();
@@ -67,60 +68,47 @@ class _SplashScreenState extends State<SplashScreen> {
       final String? vesselId = prefs.getString('vesselId');
 
       if (vesselId == null) {
-        Navigator.pushReplacementNamed(context, '/login');
+        _navigateToLogin();
         return;
       }
 
-      setState(() => _loadingMessage = "Connecting to Bluetooth...");
+      // Start both services in parallel
+      setState(() => _loadingMessage = "Connecting to Bluetooth & Starting Services...");
+
       final BluetoothService bluetoothService = BluetoothService();
       Future<bool> bleConnection = bluetoothService.scanAndConnect();
-      await Future.delayed(const Duration(seconds: 2));
-
-      setState(() => _loadingMessage = "Starting GPS Scheduler...");
-      await Future.delayed(const Duration(seconds: 2));
 
       final SchedulerService gpsScheduler = SchedulerService();
-      await gpsScheduler.startScheduler().then((_) {
-        setState(() {
-          _gpsStarted = true;
-          _loadingMessage = "✅ GPS Scheduler started successfully";
-        });
-      }).catchError((error) {
-        setState(() {
-          _gpsStarted = false;
-          _loadingMessage = "⚠️ GPS Scheduler Failed";
-        });
-      });
-      await Future.delayed(const Duration(seconds: 2));
+      Future<void> gpsStart = gpsScheduler.startScheduler();
+
+      final SOSHistoryScheduler sosScheduler = SOSHistoryScheduler();
+      sosScheduler.startScheduler(); 
+
+      // Wait for both to finish
+      await Future.wait([gpsStart, bleConnection]);
 
       bool bluetoothConnected = await bleConnection;
 
       if (!bluetoothConnected) {
-        setState(() {
-          _loadingMessage = "⚠️ Bluetooth Failed. Reconnect in Dashboard.";
-        });
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          }
-        });
-      } else {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          Navigator.pushReplacementNamed(context, '/dashboard');
-        }
+        print("⚠️ Bluetooth connection failed.");
       }
+
+      _navigateToDashboard(); 
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _loadingMessage = "❌ Initialization Failed";
-        });
-        await Future.delayed(const Duration(seconds: 2));
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
+      print("❌ Error during initialization: $e");
+      _navigateToDashboard();
+    }
+  }
+
+  void _navigateToLogin() {
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  void _navigateToDashboard() {
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/dashboard');
     }
   }
 
@@ -129,55 +117,31 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.blue[900],
       body: Center(
-        child: _isLoading
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'AquaSafe',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 26),
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    _loadingMessage,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'AquaSafe',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 26),
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    _loadingMessage,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'AquaSafe',
+              style: TextStyle(
+                fontSize: 38,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
+            ),
+            const SizedBox(height: 26),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(
+              _loadingMessage,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
