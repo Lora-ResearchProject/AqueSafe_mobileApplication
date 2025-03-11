@@ -11,7 +11,6 @@ class AppStateManager {
 
   AppStateManager._internal();
 
-  // Attributes for SOS data
   String? _id;
   String? _latitude;
   String? _longitude;
@@ -21,7 +20,6 @@ class AppStateManager {
   String? _sosDateTime;
   String? _vesselName;
 
-  // Getters
   String? get id => _id;
   String? get latitude => _latitude;
   String? get longitude => _longitude;
@@ -33,7 +31,6 @@ class AppStateManager {
 
   bool get isSOSInProgress => _status == "Active";
 
-  // Setter method to update SOS data
   void setLatestSOS(Map<String, dynamic> sosData) async {
     _id = sosData['id'];
     _latitude = sosData['latitude'];
@@ -45,11 +42,11 @@ class AppStateManager {
       DateTime sosTime = DateTime.parse(_timestamp!);
       _sosTimeAgo = timeago.format(sosTime, locale: 'en_short');
       _sosDateTime =
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(sosTime); // Format Date-Time
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(sosTime);
     }
 
     if (_id != null) {
-      await fetchVesselName(_id!); // Fetch vessel name using vessel ID
+      await fetchVesselName(_id!);
     }
   }
 
@@ -70,7 +67,7 @@ class AppStateManager {
     }
   }
 
-  // Load SOS from SharedPreferences (this fixes the issue on app startup)
+  // Load SOS from SharedPreferences
   Future<void> loadSOSFromLocal() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? lastSOS = prefs.getString('lastSOS');
@@ -95,7 +92,7 @@ class AppStateManager {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _vesselName = data['vesselName']; // Extract vessel name
+        _vesselName = data['vesselName'];
       } else {
         _vesselName = "Unknown Vessel";
       }

@@ -307,16 +307,62 @@ class BluetoothService {
     }
   }
 
-  Future<void> listenForWeatherUpdates() async {
-    _ble.subscribeToCharacteristic(weatherCharacteristic).listen(
-      (data) {
-        final weatherData = utf8.decode(data);
-        print("Received weather data: $weatherData");
-      },
-      onError: (e) {
-        print("Error receiving weather updates: $e");
-      },
-    );
+  Future<void> sendWeatherRequest(String weatherRequest) async {
+    final weatherCharacteristic =
+        BluetoothDeviceManager().weatherCharacteristic;
+
+    if (!_isConnected) {
+      print("❌ Bluetooth is not connected. Cannot send request.");
+      return;
+    }
+
+    try {
+      if (weatherCharacteristic != null) {
+        await _ble.writeCharacteristicWithoutResponse(
+          weatherCharacteristic,
+          value: utf8.encode(weatherRequest),
+        );
+        print("📡✅ Weather request sent via Bluetooth: $weatherRequest");
+      } else {
+        throw Exception("Weather characteristic not initialized.");
+      }
+    } catch (e) {
+      print("❌ Error sending weather request: $e");
+    }
+  }
+
+  Future<int?> listenForWeatherUpdates() async {
+    final weatherCharacteristic =
+        BluetoothDeviceManager().weatherCharacteristic;
+
+    if (weatherCharacteristic == null) {
+      print("❌ Weather characteristic is not initialized.");
+      return null;
+    }
+
+    try {
+      final responseData = await _ble.readCharacteristic(weatherCharacteristic);
+
+      if (responseData.isEmpty) {
+        print("❌ Received empty weather data.");
+        return null;
+      }
+
+      String response = utf8.decode(responseData);
+      print("🌤️ Raw Weather Response: $response");
+
+      Map<String, dynamic> weatherResponse = jsonDecode(response);
+
+      if (!weatherResponse.containsKey("w")) {
+        print("❌ Invalid weather response format.");
+        return null;
+      }
+
+      return weatherResponse["w"];
+    } catch (e) {
+      print("❌ Error receiving weather data: $e");
+      return null;
+    }
   }
 
   Future<void> listenForChatMessages() async {
@@ -331,7 +377,6 @@ class BluetoothService {
     );
   }
 
-  // Cancel the connection subscription when no longer needed
   void dispose() {
     connectionSubscription?.cancel();
   }
