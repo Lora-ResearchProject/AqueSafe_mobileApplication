@@ -10,20 +10,31 @@ class SOSHistoryScheduler {
   factory SOSHistoryScheduler() => _instance;
   SOSHistoryScheduler._internal();
 
-  Timer? _scheduler;
+  Timer? _fetchScheduler;
+  Timer? _checkScheduler;
+  Function? _onSOSUpdate; // Callback to update UI
 
-  void startScheduler() {
-    _scheduler = Timer.periodic(const Duration(seconds: 5), (timer) async {
+  void startScheduler({Function? onSOSUpdate}) {
+    _onSOSUpdate = onSOSUpdate;
+
+    _fetchScheduler =
+        Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (await _hasInternetConnection()) {
         _fetchAndCacheSOSHistory();
       } else {
         print("❌ No internet connection. Skipping SOS fetch.");
       }
     });
+
+    _checkScheduler =
+        Timer.periodic(const Duration(seconds: 10), (timer) async {
+      _checkLatestSOSStatus();
+    });
   }
 
   void stopScheduler() {
-    _scheduler?.cancel();
+    _fetchScheduler?.cancel();
+    _checkScheduler?.cancel();
   }
 
   // Check if there is an actual internet connection
@@ -94,5 +105,44 @@ class SOSHistoryScheduler {
       return List<Map<String, dynamic>>.from(jsonDecode(cachedData));
     }
     return [];
+  }
+
+  // Check if latest SOS is still active
+  Future<void> _checkLatestSOSStatus() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? lastSOSData = prefs.getString('lastSOS');
+    final String? cachedHistory = prefs.getString('cachedSOSHistory');
+
+    if (lastSOSData == null) return;
+
+    Map<String, dynamic> lastSOS = jsonDecode(lastSOSData);
+    String lastSOSId = lastSOS['id'].split('-')[1];
+
+    if (cachedHistory == null) {
+      await _clearLastSOS();
+      return;
+    }
+
+    List<dynamic> alerts = jsonDecode(cachedHistory);
+    bool sosStillActive = alerts.any((alert) =>
+        alert['sosId'] == lastSOSId && alert['sosStatus'] == "active");
+
+    if (!sosStillActive) {
+      print("❌ Latest SOS is no longer active. Removing from storage.");
+      await _clearLastSOS();
+    } else {
+      print("✅ Latest SOS is still active.");
+    }
+  }
+
+  // Clear latest SOS from storage
+  Future<void> _clearLastSOS() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastSOS');
+
+    // Notify UI to update
+    if (_onSOSUpdate != null) {
+      _onSOSUpdate!();
+    }
   }
 }

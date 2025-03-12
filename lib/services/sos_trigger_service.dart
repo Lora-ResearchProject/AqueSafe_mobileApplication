@@ -36,6 +36,7 @@ class SOSTriggerService {
       String latitude = position.latitude.toStringAsFixed(5);
       String longitude = position.longitude.toStringAsFixed(5);
 
+      print("---- Sos send lat: ${latitude}, Lon: ${longitude}");
       // Generate a unique ID using the GenerateUniqueIdService
       GenerateUniqueIdService idService = GenerateUniqueIdService();
       String uniqueMsgId = idService.generateId();

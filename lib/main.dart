@@ -73,19 +73,19 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       // Start both services in parallel
-      setState(() => _loadingMessage = "Connecting to Bluetooth & Starting Services...");
+      setState(() =>
+          _loadingMessage = "Connecting to Bluetooth & Starting Services...");
 
       final BluetoothService bluetoothService = BluetoothService();
       Future<bool> bleConnection = bluetoothService.scanAndConnect();
 
-      final SchedulerService gpsScheduler = SchedulerService();
-      Future<void> gpsStart = gpsScheduler.startScheduler();
-
       final SOSHistoryScheduler sosScheduler = SOSHistoryScheduler();
-      sosScheduler.startScheduler(); 
+      sosScheduler.startScheduler(onSOSUpdate: () {
+        print("🔄 UI updated: SOS status changed");
+      });
 
       // Wait for both to finish
-      await Future.wait([gpsStart, bleConnection]);
+      await Future.wait([bleConnection]);
 
       bool bluetoothConnected = await bleConnection;
 
@@ -93,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen> {
         print("⚠️ Bluetooth connection failed.");
       }
 
-      _navigateToDashboard(); 
+      _navigateToDashboard();
     } catch (e) {
       print("❌ Error during initialization: $e");
       _navigateToDashboard();
@@ -144,4 +144,3 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-

@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:aqua_safe/cards/bluetooth_warning_card.dart';
 import 'package:aqua_safe/screens/sos_alert_details_screen.dart';
-import 'package:aqua_safe/utils/bluetooth_device_manager.dart';
+import 'package:aqua_safe/services/sos_history_scheduler.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../services/sos_trigger_service.dart';
 import '../services/bluetooth_service.dart';
@@ -21,9 +22,9 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   int _currentIndex = 0;
   String sosMessage = '';
-  String sosTimeAgo = '';
-  bool isSOSInProgress = true;
-  bool isLoading = false;
+  String? sosTimeAgo = '';
+  bool isLoading = true;
+  bool isSOSActive = false;
   late List<Widget> _screens;
 
   // Initialize services
@@ -33,11 +34,14 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
-    _bluetoothService.monitorConnection(); // Monitor BLE connection
+    _bluetoothService.monitorConnection();
     print(AppStateManager().isSOSInProgress);
     print(AppStateManager().sosTimeAgo);
     print(AppStateManager().status);
-    // _loadSOSStatus();
+
+    _loadSOSStatus();
+
+    SOSHistoryScheduler().startScheduler(onSOSUpdate: _loadSOSStatus);
 
     _screens = [
       _buildDashboardContent(),
@@ -45,25 +49,45 @@ class _DashboardState extends State<Dashboard> {
     ];
   }
 
+  // Load SOS status from local storage
   Future<void> _loadSOSStatus() async {
-    await AppStateManager().loadSOSFromLocal();
-    setState(() {
-      isLoading = false;
-    });
+    setState(() => isLoading = true);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? lastSOSData = prefs.getString('lastSOS');
+
+    if (lastSOSData != null) {
+      Map<String, dynamic> lastSOS = jsonDecode(lastSOSData);
+      DateTime sosTime = DateTime.parse(lastSOS['timestamp']);
+
+      setState(() {
+        isSOSActive = true;
+        sosTimeAgo = timeago.format(sosTime, locale: 'en_short');
+      });
+    } else {
+      setState(() {
+        isSOSActive = false;
+        isLoading = false;
+      });
+    }
+
+    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF151d67),
-      body:
-          _screens[_currentIndex], // Display the current screen based on index
+      body: isLoading
+          ? _buildLoadingIndicator()
+          : (_currentIndex == 0
+              ? _buildDashboardContent()
+              : const SettingsScreen()),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF1C3D72),
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
-            _currentIndex = index; // Update index on tab click
+            _currentIndex = index;
           });
           if (index == 0) {
             _loadSOSStatus(); // Reload SOS status when navigating back to Home
@@ -85,20 +109,24 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  /// Build Dashboard Content (Home Screen)
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: CircularProgressIndicator(color: Colors.white),
+    );
+  }
+
+  // Build Dashboard Content
   Widget _buildDashboardContent() {
     if (isLoading) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF151d67),
-        body: const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
       );
     }
+
     return SafeArea(
       child: Column(
         children: [
-          // ✅ Listen to Bluetooth connection status and show warning dynamically
+          // Bluetooth connection warning
           ValueListenableBuilder<bool>(
             valueListenable: _bluetoothService.isConnectedNotifier,
             builder: (context, isConnected, child) {
@@ -165,74 +193,88 @@ class _DashboardState extends State<Dashboard> {
                   ),
                   const SizedBox(height: 10),
 
-                  if (AppStateManager().isSOSInProgress)
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => SOSDetailView()),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12.0),
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(
-                              255, 95, 14, 14), // Dark red background
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.white,
-                                  size: 24,
+                  // Show latest SOS if active
+                  isSOSActive
+                      ? GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => SOSDetailView()),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: const Color.fromARGB(255, 134, 10, 10),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'SOS Alert in Progress',
-                                    style: const TextStyle(
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
                                       color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
+                                      size: 24,
                                     ),
-                                  ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'SOS Alert in Progress',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const CircleAvatar(
+                                      backgroundColor:
+                                          Color.fromARGB(255, 105, 245, 110),
+                                      radius: 8,
+                                    ),
+                                  ],
                                 ),
-                                const CircleAvatar(
-                                  backgroundColor: Colors.green,
-                                  radius: 8,
-                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const SizedBox(width: 36),
+                                    Text(
+                                      sosTimeAgo ?? "Unknown",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w300,
+                                      ),
+                                    ),
+                                  ],
+                                )
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const SizedBox(width: 36),
-                                Text(
-                                  AppStateManager().sosTimeAgo ?? "Unknown",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w300,
-                                  ),
-                                ),
-                              ],
-                            )
-                          ],
+                          ),
+                        )
+                      : const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text(
+                              "No active SOS alerts.",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+
                   const SizedBox(height: 20),
 
                   // Quick Links
@@ -296,45 +338,6 @@ class _DashboardState extends State<Dashboard> {
       ),
     );
   }
-
-  /// Build Settings Screen
-  // Widget _buildSettingsScreen() {
-  //   return SafeArea(
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(16.0),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           const Text(
-  //             'Settings',
-  //             style: TextStyle(color: Colors.white, fontSize: 24),
-  //           ),
-  //           const SizedBox(height: 16),
-  //           ListTile(
-  //             leading: const Icon(Icons.bluetooth, color: Colors.white),
-  //             title: const Text(
-  //               'Bluetooth Settings',
-  //               style: TextStyle(color: Colors.white),
-  //             ),
-  //             onTap: () {
-  //               // Handle Bluetooth settings action
-  //             },
-  //           ),
-  //           ListTile(
-  //             leading: const Icon(Icons.gps_fixed, color: Colors.white),
-  //             title: const Text(
-  //               'GPS Settings',
-  //               style: TextStyle(color: Colors.white),
-  //             ),
-  //             onTap: () {
-  //               // Handle GPS settings action
-  //             },
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   /// Connection Status Widget
   Widget _buildConnectionStatus(

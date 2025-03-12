@@ -26,24 +26,31 @@ class WeatherService {
       var position = await _locationService.getCurrentPosition();
       String latitude = position.latitude.toStringAsFixed(5);
       String longitude = position.longitude.toStringAsFixed(5);
+      String? _lastRequestId;
 
       GenerateUniqueIdService idService = GenerateUniqueIdService();
       String uniqueMsgId = idService.generateId();
 
-      String weatherData = jsonEncode(
-          {"id": "$vesselId|$uniqueMsgId", "l": "$latitude|$longitude", "wr": 1});
+      _lastRequestId = "$vesselId|$uniqueMsgId";
+
+      String weatherData = jsonEncode({
+        "id": "$vesselId|$uniqueMsgId",
+        "l": "$latitude|$longitude",
+        "wr": 1
+      });
 
       print("📡 Sending Weather Request: $weatherData");
       await _bluetoothService.sendWeatherRequest(weatherData);
 
-      int? weatherResponse = await _bluetoothService.listenForWeatherUpdates();
+      int? weatherResponse =
+          await _bluetoothService.listenForWeatherUpdates(_lastRequestId);
 
       return weatherResponse;
     } catch (e) {
       print("❌ Error fetching weather: $e");
       return null;
     } finally {
-      _isFetching = false; 
+      _isFetching = false;
     }
   }
 }
