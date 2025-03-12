@@ -286,7 +286,7 @@ class BluetoothService {
         AppStateManager().setLatestSOS(formattedSOSData);
 
         // Save to SharedPreferences (for persistence)
-        await AppStateManager().saveSOSToLocal();
+        // await AppStateManager().saveSOSToLocal();
         print("✅ Latest SOS saved in State Manager and SharedPreferences.");
         onUpdate();
       } else {
@@ -336,7 +336,7 @@ class BluetoothService {
     }
   }
 
-  Future<int?> listenForWeatherUpdates() async {
+  Future<int?> listenForWeatherUpdates(String expectedId) async {
     final weatherCharacteristic =
         BluetoothDeviceManager().weatherCharacteristic;
 
@@ -358,11 +358,20 @@ class BluetoothService {
 
       Map<String, dynamic> weatherResponse = jsonDecode(response);
 
-      if (!weatherResponse.containsKey("w")) {
+      if (!weatherResponse.containsKey("id") ||
+          !weatherResponse.containsKey("w")) {
         print("❌ Invalid weather response format.");
         return null;
       }
 
+      String receivedId = weatherResponse["id"];
+
+      if (receivedId != expectedId) {
+        print("⚠️ Mismatched weather response. Ignoring.");
+        return null;
+      }
+
+      print("✅ Matched Response: Weather Data = ${weatherResponse["w"]}%");
       return weatherResponse["w"];
     } catch (e) {
       print("❌ Error receiving weather data: $e");
