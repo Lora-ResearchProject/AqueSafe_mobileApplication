@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/appStateManager.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -12,19 +16,11 @@ class SOSDetailView extends StatefulWidget {
 
 class _SOSDetailViewState extends State<SOSDetailView> {
   ui.Image? markerImage;
-  Timer? _locationUpdateTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMarkerImage();
-    _startLocationUpdateTimer();
-  }
-
-  @override
-  void dispose() {
-    _locationUpdateTimer?.cancel();
-    super.dispose();
   }
 
   // Load vessel marker image
@@ -42,21 +38,20 @@ class _SOSDetailViewState extends State<SOSDetailView> {
     return frame.image;
   }
 
-  // Update location periodically
-  void _startLocationUpdateTimer() {
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      setState(() {}); // Refresh UI with latest SOS data
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF151d67),
       appBar: AppBar(
-        title: const Text('SOS Alert', style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF1C3D72),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Recent SOS'),
+        titleTextStyle: const TextStyle(
+            color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF151d67),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -67,8 +62,6 @@ class _SOSDetailViewState extends State<SOSDetailView> {
               _buildSOSDetails(),
               const SizedBox(height: 16),
               _buildSOSMap(),
-              const SizedBox(height: 20),
-              _buildMarkResolvedButton(),
             ],
           ),
         ),
@@ -76,25 +69,83 @@ class _SOSDetailViewState extends State<SOSDetailView> {
     );
   }
 
-  // Builds SOS Details UI
+  Future<Map<String, dynamic>?> _loadLatestSOSFromPrefs() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? lastSOSData = prefs.getString('lastSOS');
+
+    if (lastSOSData == null) {
+      print("⚠️ No SOS data found in SharedPreferences.");
+      return null;
+    }
+
+    try {
+      final sosData = jsonDecode(lastSOSData);
+
+      // Fetch vessel name if missing
+      //String vesselName = sosData['vesselName'] ?? "Unknown";
+      // if (vesselName == "Unknown" && sosData['id'] != null) {
+      //   vesselName = AppStateManager().fetchVesselName(sosData['id']);
+      // }
+
+      return {
+        "id": sosData['id'],
+        "latitude": sosData['latitude'],
+        "longitude": sosData['longitude'],
+        "timestamp": sosData['timestamp'],
+        "vesselName": sosData['vesselName']
+      };
+    } catch (e) {
+      print("❌ Error loading SOS data: $e");
+      return null;
+    }
+  }
+
   Widget _buildSOSDetails() {
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C3D72),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDetailRow("Sender:", AppStateManager().vesselName ?? "Unknown"),
-          _buildDetailRow("Location:",
-              "${AppStateManager().latitude}, ${AppStateManager().longitude}"),
-          _buildDetailRow(
-              "Time Sent:", AppStateManager().sosDateTime ?? "Unknown"),
-          _buildStatusBadge(),
-        ],
-      ),
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _loadLatestSOSFromPrefs(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+              child: CircularProgressIndicator(color: Colors.white));
+        }
+
+        // If no SOS data is found, display a message
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const Center(
+            child: Text(
+              "No SOS alert available.",
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          );
+        }
+
+        // Extract SOS details from the snapshot data
+        final sosData = snapshot.data!;
+        final vesselName = sosData['vesselName'] ?? "Unknown Vessel";
+        final latitude = sosData['latitude'] ?? "Not Available";
+        final longitude = sosData['longitude'] ?? "Not Available";
+        final timeSent = sosData['timestamp'] != null
+            ? DateFormat('yyyy-MM-dd HH:mm:ss')
+                .format(DateTime.parse(sosData['timestamp']))
+            : "Unknown";
+
+        return Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C3D72),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow("Sender:", vesselName),
+              _buildDetailRow("Location:", "${latitude}N, ${longitude}M"),
+              _buildDetailRow("Time Sent:", timeSent),
+              _buildStatusBadge(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -105,9 +156,14 @@ class _SOSDetailViewState extends State<SOSDetailView> {
         children: [
           Text(label,
               style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18)),
           const SizedBox(width: 8),
-          Text(value, style: const TextStyle(color: Colors.white70)),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.white70, fontSize: 18),
+          ),
         ],
       ),
     );
@@ -117,63 +173,35 @@ class _SOSDetailViewState extends State<SOSDetailView> {
     return Row(
       children: [
         const Text("Status:",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18)),
         const SizedBox(width: 8),
-        CircleAvatar(
-          backgroundColor:
-              AppStateManager().isSOSInProgress ? Colors.green : Colors.red,
-          radius: 6,
+        const CircleAvatar(
+          backgroundColor: Colors.green,
+          radius: 7,
         ),
         const SizedBox(width: 6),
-        Text(
-          AppStateManager().isSOSInProgress ? "Active" : "Resolved",
-          style: const TextStyle(color: Colors.white70),
+        const Text(
+          "Active",
+          style: TextStyle(fontSize: 18, color: Colors.white70),
         ),
       ],
     );
   }
 
-  /// Builds Map UI
+  // Builds Map UI
   Widget _buildSOSMap() {
     return Expanded(
       child: CustomPaint(
-        size: Size(MediaQuery.of(context).size.width, 300),
+        size: Size(MediaQuery.of(context).size.width, 400),
         painter: SOSMapPainter(
-          latitude: double.tryParse(AppStateManager().latitude ?? "0") ?? 0.0,
-          longitude: double.tryParse(AppStateManager().longitude ?? "0") ?? 0.0,
+          sosLatitude:
+              double.tryParse(AppStateManager().latitude ?? "0") ?? 0.0,
+          sosLongitude:
+              double.tryParse(AppStateManager().longitude ?? "0") ?? 0.0,
           markerImage: markerImage,
-        ),
-      ),
-    );
-  }
-
-  /// Builds "Mark as Resolved" Button
-  Widget _buildMarkResolvedButton() {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          setState(() {
-            AppStateManager().setLatestSOS({
-              'id': AppStateManager().id,
-              'latitude': AppStateManager().latitude,
-              'longitude': AppStateManager().longitude,
-              'status': 'Resolved',
-              'timestamp': AppStateManager().timestamp,
-            });
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 40),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-        child: const Text(
-          "Mark as Resolved",
-          style: TextStyle(
-              color: Color(0xFF151d67),
-              fontSize: 18,
-              fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -182,12 +210,15 @@ class _SOSDetailViewState extends State<SOSDetailView> {
 
 /// **Custom Map Painter for SOS Location**
 class SOSMapPainter extends CustomPainter {
-  final double latitude;
-  final double longitude;
+  final double sosLatitude;
+  final double sosLongitude;
   final ui.Image? markerImage;
 
-  SOSMapPainter(
-      {required this.latitude, required this.longitude, this.markerImage});
+  SOSMapPainter({
+    required this.sosLatitude,
+    required this.sosLongitude,
+    this.markerImage,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -200,12 +231,19 @@ class SOSMapPainter extends CustomPainter {
     double centerX = size.width / 2;
     double centerY = size.height / 2;
 
-    canvas.drawCircle(Offset(centerX, centerY), 20, sosPaint);
-    canvas.drawCircle(Offset(centerX, centerY), 10, markerPaint);
+    // Draw SOS location as a red dot
+    canvas.drawCircle(Offset(centerX, centerY - 50), 12, sosPaint);
+    canvas.drawCircle(Offset(centerX, centerY - 50), 6, markerPaint);
 
+    // Draw vessel icon with reduced size
     if (markerImage != null) {
-      canvas.drawImage(
-          markerImage!, Offset(centerX - 10, centerY - 20), Paint());
+      canvas.drawImageRect(
+        markerImage!,
+        Rect.fromLTWH(0, 0, markerImage!.width.toDouble(),
+            markerImage!.height.toDouble()),
+        Rect.fromLTWH(centerX - 12, centerY + 30, 24, 32), // Smaller size
+        Paint(),
+      );
     }
   }
 
