@@ -1,21 +1,34 @@
 import 'dart:convert';
+import 'package:aqua_safe/services/bluetooth_service.dart';
 import 'package:aqua_safe/services/generate_unique_id_service.dart';
-import 'package:aqua_safe/services/location_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/bluetooth_service.dart';
 
-class WeatherService {
+class FishingHotspotService {
   final BluetoothService _bluetoothService = BluetoothService();
-  final LocationService _locationService = LocationService();
-  bool _isFetching = false;
 
-  Future<int?> getWeather() async {
-    if (_isFetching) {
-      print("⚠️ Weather request ignored (already fetching)");
-      return null;
+  // Fetch suggested fishing hotspots
+  Future<List<Map<String, dynamic>>> fetchSuggestedFishingHotspots() async {
+    try {
+      print("📡 Requesting hotspot data via BLE...");
+
+      List<Map<String, dynamic>> hotspotList =
+          await _bluetoothService.listenForHotspotUpdates();
+
+      if (hotspotList.isEmpty) {
+        print("⚠️ No hotspots received.");
+      } else {
+        print("✅ Hotspots successfully received: ${hotspotList.length} items.");
+      }
+
+      return hotspotList;
+    } catch (e) {
+      print("❌ Error fetching hotspots via BLE: $e");
+      return [];
     }
-    _isFetching = true;
+  }
 
+  // Fetch weather for a specific hotspot
+  Future<int?> fetchWeatherForHotspot(double latitude, double longitude) async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? vesselId = prefs.getString('vesselId');
@@ -23,9 +36,6 @@ class WeatherService {
         throw Exception("❌ Vessel ID not found in SharedPreferences");
       }
 
-      var position = await _locationService.getCurrentPosition();
-      String latitude = position.latitude.toStringAsFixed(5);
-      String longitude = position.longitude.toStringAsFixed(5);
       String? _lastRequestId;
 
       GenerateUniqueIdService idService = GenerateUniqueIdService();
@@ -39,25 +49,15 @@ class WeatherService {
       print("📡 Sending Weather Request: $weatherData");
       await _bluetoothService.sendWeatherRequest(weatherData);
 
+      print("📡 Fetching weather for hotspot: $weatherData");
+
       int? weatherResponse =
           await _bluetoothService.listenForWeatherUpdates(_lastRequestId);
 
       return weatherResponse;
     } catch (e) {
-      print("❌ Error fetching weather: $e");
+      print("❌ Error fetching weather for hotspot: $e");
       return null;
-    } finally {
-      _isFetching = false;
-    }
-  }
-
-  String getWeatherCondition(int percentage) {
-    if (percentage >= 70) {
-      return "High chance of rain";
-    } else if (percentage >= 40) {
-      return "Moderate chance of rain";
-    } else {
-      return "Low chance of rain";
     }
   }
 }

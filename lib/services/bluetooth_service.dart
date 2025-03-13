@@ -26,6 +26,7 @@ class BluetoothService {
   late QualifiedCharacteristic sosCharacteristic;
   late QualifiedCharacteristic chatCharacteristic;
   late QualifiedCharacteristic weatherCharacteristic;
+  late QualifiedCharacteristic hotspotChracteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
 
@@ -207,8 +208,18 @@ class BluetoothService {
         deviceId: device.id,
       );
 
-      BluetoothDeviceManager().setCharacteristics(sosCharacteristic,
-          gpsCharacteristic, chatCharacteristic, weatherCharacteristic);
+      hotspotChracteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.hotspotChracteristicUuid),
+        serviceId: Uuid.parse(Constants.serviceUuid),
+        deviceId: device.id,
+      );
+
+      BluetoothDeviceManager().setCharacteristics(
+          sosCharacteristic,
+          gpsCharacteristic,
+          chatCharacteristic,
+          weatherCharacteristic,
+          hotspotChracteristic);
 
       print("Device connected and characteristics initialized.");
     } catch (e) {
@@ -389,6 +400,41 @@ class BluetoothService {
         print("Error receiving chat messages: $e");
       },
     );
+  }
+
+  Future<List<Map<String, dynamic>>> listenForHotspotUpdates() async {
+    final hotspotCharacteristic = BluetoothDeviceManager().hotspotChracteristic;
+
+    if (hotspotCharacteristic == null) {
+      print("❌ Hotspot characteristic is not initialized.");
+      return [];
+    }
+
+    try {
+      final responseData = await _ble.readCharacteristic(hotspotCharacteristic);
+
+      if (responseData.isEmpty) {
+        print("❌ Received empty hotspot data.");
+        return [];
+      }
+
+      String response = utf8.decode(responseData);
+      print("📍 Raw Hotspot Response: $response");
+
+      // 🔹 Try parsing response safely
+      final parsedResponse = jsonDecode(response);
+
+      if (parsedResponse is List) {
+        print("✅ Hotspot Data Received Successfully.");
+        return parsedResponse.cast<Map<String, dynamic>>(); // Safe casting
+      }
+
+      print("❌ Invalid hotspot response format (expected a List).");
+      return [];
+    } catch (e) {
+      print("❌ Error receiving hotspot data: $e");
+      return [];
+    }
   }
 
   void dispose() {

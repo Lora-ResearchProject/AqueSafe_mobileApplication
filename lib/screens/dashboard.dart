@@ -324,8 +324,17 @@ class _DashboardState extends State<Dashboard> {
                           icon: Icons.cloud,
                           label: 'Weather',
                           color: const Color.fromARGB(255, 1, 95, 142),
-                          onTap: () =>
-                              {Navigator.pushNamed(context, '/weather')},
+                          onTap: () => {
+                            Navigator.pushNamed(
+                              context,
+                              '/weather',
+                              arguments: {
+                                'locationName': "undefined",
+                                'latitude': 0.0,
+                                'longitude': 0.0,
+                              },
+                            )
+                          },
                         ),
                       ],
                     ),
