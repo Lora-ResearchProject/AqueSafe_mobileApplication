@@ -11,6 +11,7 @@ class BluetoothDeviceManager {
   QualifiedCharacteristic? _gpsCharacteristic;
   QualifiedCharacteristic? _chatCharacteristic;
   QualifiedCharacteristic? _weatherCharacteristic;
+  QualifiedCharacteristic? _hotspotChracteristic;
 
   BluetoothDeviceManager._internal();
 
@@ -29,6 +30,8 @@ class BluetoothDeviceManager {
 
   QualifiedCharacteristic? get weatherCharacteristic => _weatherCharacteristic;
 
+  QualifiedCharacteristic? get hotspotChracteristic => _hotspotChracteristic;
+
   void setDevice(DiscoveredDevice device) {
     _discoveredDevice = device;
   }
@@ -37,11 +40,13 @@ class BluetoothDeviceManager {
       QualifiedCharacteristic sos,
       QualifiedCharacteristic gps,
       QualifiedCharacteristic chat,
-      QualifiedCharacteristic weather) {
+      QualifiedCharacteristic weather,
+      QualifiedCharacteristic hotspot) {
     _sosCharacteristic = sos;
     _gpsCharacteristic = gps;
     _chatCharacteristic = chat;
     _weatherCharacteristic = weather;
+    _hotspotChracteristic = hotspot;
   }
 
   // Optional: Clear the device if needed
@@ -51,5 +56,6 @@ class BluetoothDeviceManager {
     _gpsCharacteristic = null;
     _chatCharacteristic = null;
     _weatherCharacteristic = null;
+    _hotspotChracteristic = null;
   }
 }
