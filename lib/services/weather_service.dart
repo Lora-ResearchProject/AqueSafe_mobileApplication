@@ -33,11 +33,8 @@ class WeatherService {
 
       _lastRequestId = "$vesselId|$uniqueMsgId";
 
-      String weatherData = jsonEncode({
-        "id": "$vesselId|$uniqueMsgId",
-        "l": "$latitude|$longitude",
-        "wr": 1
-      });
+      String weatherData = jsonEncode(
+          {"id": "$vesselId|$uniqueMsgId", "l": "$latitude|$longitude", "wr": 1});
 
       print("📡 Sending Weather Request: $weatherData");
       await _bluetoothService.sendWeatherRequest(weatherData);
@@ -51,6 +48,16 @@ class WeatherService {
       return null;
     } finally {
       _isFetching = false;
+    }
+  }
+
+  String getWeatherCondition(int percentage) {
+    if (percentage >= 70) {
+      return "High chance of rain";
+    } else if (percentage >= 40) {
+      return "Moderate chance of rain";
+    } else {
+      return "Low chance of rain";
     }
   }
 }
