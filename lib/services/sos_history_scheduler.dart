@@ -42,7 +42,7 @@ class SOSHistoryScheduler {
     try {
       final result = await http
           .get(Uri.parse("https://www.google.com"))
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 30));
 
       if (result.statusCode == 200) {
         print("✅ Internet is available.");
