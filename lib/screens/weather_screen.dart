@@ -44,23 +44,36 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   Future<void> _fetchFishingHotspots() async {
     setState(() {
-      isLoadingHotspots = List.filled(3, true); // Assume 3 hotspots loading
+      isLoadingHotspots = List.filled(3, true); // Assume 3 slots are loading
+      hotspots = []; // Ensure it's cleared initially
     });
 
     try {
+      print("📡 Requesting hotspot data via BLE...");
+
       List<Map<String, dynamic>> fetchedHotspots =
           await fishingHotspotService.fetchSuggestedFishingHotspots();
 
-      setState(() {
-        hotspots = fetchedHotspots;
-        isLoadingHotspots = List.filled(fetchedHotspots.length, false);
-        hasHotspotError = false;
-      });
+      if (fetchedHotspots.isNotEmpty) {
+        setState(() {
+          hotspots = fetchedHotspots;
+          isLoadingHotspots = List.filled(fetchedHotspots.length, false);
+          hasHotspotError = false;
+        });
+        print("✅ Hotspots successfully received: ${hotspots.length} items.");
+      } else {
+        setState(() {
+          hasHotspotError = true;
+          isLoadingHotspots = List.filled(3, false);
+        });
+        print("⚠️ No hotspots received.");
+      }
     } catch (e) {
       setState(() {
         hasHotspotError = true;
         isLoadingHotspots = List.filled(3, false);
       });
+      print("❌ Error fetching hotspots: $e");
     }
   }
 
@@ -174,17 +187,21 @@ class _WeatherScreenState extends State<WeatherScreen> {
             child: Row(
               children: [
                 _navItem("Current", isSelected: selectedNavItem == "Current"),
-                for (int i = 0; i < 3; i++) // Show 3 slots initially
-                  _navItem(
-                    isLoadingHotspots[i]
-                        ? "Loading..."
-                        : hasHotspotError
-                            ? "Error"
-                            : "HS-${hotspots[i]['hotspotId']}",
-                    isSelected:
-                        selectedNavItem == "HS-${hotspots[i]['hotspotId']}",
-                    isLoading: isLoadingHotspots[i],
-                  ),
+                // Check hotspots list is not empty before accessing it
+                if (hotspots.isNotEmpty)
+                  for (int i = 0; i < hotspots.length; i++)
+                    _navItem(
+                      isLoadingHotspots[i]
+                          ? "Loading..."
+                          : "HS-${hotspots[i]['hotspotId']}",
+                      isSelected:
+                          selectedNavItem == "HS-${hotspots[i]['hotspotId']}",
+                      isLoading: isLoadingHotspots[i],
+                    )
+                else
+                  // Show loading placeholders if hotspots are not loaded yet
+                  for (int i = 0; i < 3; i++)
+                    _navItem("Loading...", isSelected: false, isLoading: true),
               ],
             ),
           ),
