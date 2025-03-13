@@ -1,5 +1,7 @@
+import 'package:aqua_safe/screens/chat.dart';
 import 'package:aqua_safe/screens/weather_map.dart';
 import 'package:aqua_safe/screens/weather_screen.dart';
+import 'package:aqua_safe/services/predefined_msg_scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login.dart';
@@ -42,6 +44,28 @@ class AquaSafeApp extends StatelessWidget {
                 locationName: args['locationName'] ?? "Unknown Location",
                 latitude: args['latitude'] ?? 0.0,
                 longitude: args['longitude'] ?? 0.0,
+              ),
+            );
+          } else {
+            // Handle the case where arguments are missing
+            print(
+                "⚠️ Warning: Missing or invalid arguments for /weather route.");
+            return MaterialPageRoute(
+              builder: (context) => const WeatherScreen(
+                locationName: "Unknown",
+                latitude: 0.0,
+                longitude: 0.0,
+              ),
+            );
+          }
+        }
+        if (settings.name == '/chat') {
+          final args = settings.arguments;
+
+          if (args is Map<String, dynamic>) {
+            return MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                vesselId: args['vesselId'] ?? "Unknown Vessel",
               ),
             );
           } else {
@@ -110,6 +134,9 @@ class _SplashScreenState extends State<SplashScreen> {
       sosScheduler.startScheduler(onSOSUpdate: () {
         print("🔄 UI updated: SOS status changed");
       });
+
+      final ChatMessageScheduler chatMessageScheduler = ChatMessageScheduler();
+      chatMessageScheduler.startScheduler();
 
       // Wait for both to finish
       await Future.wait([bleConnection]);
