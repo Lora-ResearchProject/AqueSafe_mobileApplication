@@ -18,7 +18,7 @@ class SOSHistoryScheduler {
     _onSOSUpdate = onSOSUpdate;
 
     _fetchScheduler =
-        Timer.periodic(const Duration(seconds: 10), (timer) async {
+        Timer.periodic(const Duration(seconds: 30), (timer) async {
       if (await _hasInternetConnection()) {
         _fetchAndCacheSOSHistory();
       } else {
@@ -27,7 +27,7 @@ class SOSHistoryScheduler {
     });
 
     _checkScheduler =
-        Timer.periodic(const Duration(seconds: 10), (timer) async {
+        Timer.periodic(const Duration(seconds: 30), (timer) async {
       _checkLatestSOSStatus();
     });
   }
@@ -116,14 +116,22 @@ class SOSHistoryScheduler {
     if (lastSOSData == null) return;
 
     Map<String, dynamic> lastSOS = jsonDecode(lastSOSData);
-    String lastSOSId = lastSOS['id'].split('-')[1];
+    String lastSOSId = lastSOS['id'].split('|')[1];
 
-    if (cachedHistory == null) {
+    if (cachedHistory == null || cachedHistory.isEmpty) {
+      print("❌ No cached SOS history available. Clearing last SOS.");
       await _clearLastSOS();
       return;
     }
 
     List<dynamic> alerts = jsonDecode(cachedHistory);
+
+    if (alerts.isEmpty) {
+      print("⚠️ Cached SOS history is empty. Clearing last SOS.");
+      await _clearLastSOS();
+      return;
+    }
+
     bool sosStillActive = alerts.any((alert) =>
         alert['sosId'] == lastSOSId && alert['sosStatus'] == "active");
 

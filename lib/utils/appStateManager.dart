@@ -46,7 +46,7 @@ class AppStateManager {
     }
 
     if (_id != null) {
-      await fetchVesselName(_id!.split('-')[0]);
+      await fetchVesselName(_id!.split('|')[0]);
     }
 
     await saveSOSToLocal(); // ✅ Now save after fetching vessel name
@@ -72,8 +72,7 @@ class AppStateManager {
       );
     }
 
-    print(
-        '-----------------------------------------------------------------------------vesel Name:${_vesselName}');
+    print('----vesel Name:${_vesselName}');
   }
 
   // Future<void> fetchVesselName(String vesselId) async {
