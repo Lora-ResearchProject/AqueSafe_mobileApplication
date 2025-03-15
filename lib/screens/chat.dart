@@ -1,20 +1,24 @@
 import 'dart:convert';
+import 'package:aqua_safe/services/chat_service.dart';
 import 'package:aqua_safe/services/generate_unique_id_service.dart';
 import 'package:aqua_safe/services/predefined_msg_scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatScreen extends StatefulWidget {
-  final String vesselId;
-
-  const ChatScreen({Key? key, required this.vesselId}) : super(key: key);
+  const ChatScreen({Key? key}) : super(key: key);
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final ChatService _chatService = ChatService();
+
   List<Map<String, dynamic>> messages = [];
+  List<String> sentMessages = []; // Store sent messages
+  List<String> receivedMessages = []; // Store received messages
   String selectedMessage = "";
   String selectedMessageNumber = "";
   bool isFirstMessageSent = false;
@@ -24,6 +28,13 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+
+    // Start listening for BLE chat messages
+    _chatService.startListeningForMessages((message) {
+      setState(() {
+        receivedMessages.add("[${message['m']}] - Received");
+      });
+    });
   }
 
   Future<void> _loadMessages() async {
@@ -32,39 +43,35 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (selectedMessageNumber.isEmpty) return;
+    if (selectedMessageNumber.isEmpty) {
+      print("❌ Error: No message selected.");
+      return;
+    }
 
-    GenerateUniqueIdService idService = GenerateUniqueIdService();
-    String uniqueMsgId = idService.generateId();
+    int? messageNumber = int.tryParse(selectedMessageNumber);
+    if (messageNumber == null) {
+      print("❌ Error: Invalid message number.");
+      return;
+    }
 
-    final String id = "${widget.vesselId}|$uniqueMsgId";
-    final int messageNumber = int.parse(selectedMessageNumber);
+    await _chatService.sendChatMessage(messageNumber);
 
-    final Map<String, dynamic> payload = {
-      "id": id,
-      "m": messageNumber,
-    };
+    setState(() {
+      isFirstMessageSent = true;
+      selectedNumbers.clear();
+      selectedMessageNumber = "";
 
-    try {
-      final response = await http.post(
-        Uri.parse("https://app.aquasafe.fish/backend/api/chat/"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
+      // ✅ Save sent message for display - need to modify to cache locally and display history
+      final sentMsg = messages.firstWhere(
+        (msg) => msg['messageNumber'] == messageNumber,
+        orElse: () => {},
       );
 
-      if (response.statusCode == 200) {
-        print("✅ Message Sent: $selectedMessageNumber");
-        setState(() {
-          isFirstMessageSent = true;
-          selectedNumbers.clear();
-          selectedMessageNumber = "";
-        });
-      } else {
-        print("❌ Message send failed: ${response.body}");
+      if (sentMsg.isNotEmpty) {
+        sentMessages
+            .add("[${sentMsg['messageNumber']}] - ${sentMsg['message']}");
       }
-    } catch (e) {
-      print("❌ Error sending message: $e");
-    }
+    });
   }
 
   void _selectNumber(int number) {
@@ -94,7 +101,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: const Text('Web Server'),
         titleTextStyle: const TextStyle(
-            color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+            color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         backgroundColor: const Color(0xFF151d67),
         centerTitle: false,
         leading: IconButton(
@@ -125,40 +132,83 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start, // Left-align everything
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-            child: Text(
-              "Select the message code to send",
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              textAlign: TextAlign.left, // Left-aligned
+          if (!isFirstMessageSent) // Hide this text after first message
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+              child: Text(
+                "Select the message code to send",
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                textAlign: TextAlign.left, // Left-aligned
+              ),
+            ),
+
+          // Display Received & Sent Messages
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                for (var msg in receivedMessages)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[700],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(msg,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 18)),
+                    ),
+                  ),
+                for (var msg in sentMessages)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.lightBlueAccent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(msg,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 18)),
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (!isFirstMessageSent) ...[
+
+          if (!isFirstMessageSent)
             Expanded(
+              // ✅ Takes full available space
               child: Container(
                 width: double.infinity,
                 margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 30),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: const Color.fromARGB(255, 12, 18, 67),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: const Color.fromARGB(184, 249, 249, 249),
-                      width: 1.5), // White border
+                  border: Border.all(color: Colors.white, width: 1.5),
                 ),
                 child: Scrollbar(
                   child: SingleChildScrollView(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start, // Left-align text
                       children: messages.map((msg) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 5),
                           child: Text(
                             "[${msg['messageNumber']}] - ${msg['message']}",
                             style: const TextStyle(
-                                color: Colors.white, fontSize: 24),
-                            textAlign: TextAlign.left, // Left-aligned text
+                                color: Colors.white, fontSize: 20),
                           ),
                         );
                       }).toList(),
@@ -166,8 +216,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
               ),
-            ),
-          ] else ...[
+            )
+          else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButton<String>(
@@ -176,12 +226,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 hint: const Text("Pick a message to send",
                     style: TextStyle(color: Colors.white)),
                 isExpanded: true,
-                icon: const Icon(Icons.arrow_drop_up, color: Colors.white),
+                icon: const Icon(Icons.arrow_drop_up,
+                    color: Colors.white), // Opens Up
                 style: const TextStyle(color: Colors.white),
                 onChanged: (value) {
                   setState(() {
                     selectedMessage = value ?? "";
-                    isFirstMessageSent = false; // Show message box again
+                    isFirstMessageSent = false;
                   });
                 },
                 items: messages.map((msg) {
@@ -193,7 +244,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 }).toList(),
               ),
             ),
-          ],
+
+          // Number Keyboard
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
             child: Column(
@@ -205,21 +257,35 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+
+          // Send Button
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
             child: ElevatedButton(
               onPressed: selectedMessageNumber.isNotEmpty ? _sendMessage : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
+                backgroundColor: selectedMessageNumber.isNotEmpty
+                    ? Colors.white
+                    : Colors.grey.shade600, 
+                minimumSize: const Size(double.infinity, 55),
                 padding:
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 50),
-                textStyle: const TextStyle(
-                  fontSize: 20,
+                textStyle: TextStyle(
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF151d67),
+                  color: selectedMessageNumber.isNotEmpty
+                      ? const Color(0xFF151d67)
+                      : Colors.grey.shade400, 
                 ),
               ),
-              child: const Text("Send"),
+              child: Text(
+                "Send",
+                style: TextStyle(
+                  color: selectedMessageNumber.isNotEmpty
+                      ? const Color(0xFF151d67)
+                      : Colors.grey.shade400, 
+                ),
+              ),
             ),
           ),
         ],
@@ -254,11 +320,12 @@ class _ChatScreenState extends State<ChatScreen> {
               alignment: Alignment.center,
               child: Text(
                 number.toString(),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 42, 48, 94),
-                ),
+                style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: selectedNumbers.contains(number)
+                        ? Colors.white
+                        : const Color.fromARGB(255, 1, 84, 107)),
               ),
             ),
           ),

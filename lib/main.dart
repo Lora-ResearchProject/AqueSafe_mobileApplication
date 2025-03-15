@@ -59,28 +59,6 @@ class AquaSafeApp extends StatelessWidget {
             );
           }
         }
-        if (settings.name == '/chat') {
-          final args = settings.arguments;
-
-          if (args is Map<String, dynamic>) {
-            return MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                vesselId: args['vesselId'] ?? "Unknown Vessel",
-              ),
-            );
-          } else {
-            // Handle the case where arguments are missing
-            print(
-                "⚠️ Warning: Missing or invalid arguments for /weather route.");
-            return MaterialPageRoute(
-              builder: (context) => const WeatherScreen(
-                locationName: "Unknown",
-                latitude: 0.0,
-                longitude: 0.0,
-              ),
-            );
-          }
-        }
         return null;
       },
       routes: {
@@ -92,6 +70,7 @@ class AquaSafeApp extends StatelessWidget {
         '/edit_account': (context) => const EditAccountScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
         '/weather_map': (context) => const WeatherMapScreen(),
+        '/chat': (context) => const ChatScreen()
       },
     );
   }
