@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:aqua_safe/cards/bluetooth_warning_card.dart';
+import 'package:aqua_safe/screens/chat.dart';
 import 'package:aqua_safe/screens/sos_alert_details_screen.dart';
 import 'package:aqua_safe/services/sos_history_scheduler.dart';
 import 'package:flutter/material.dart';
@@ -319,6 +320,15 @@ class _DashboardState extends State<Dashboard> {
                           icon: Icons.chat,
                           label: 'Chat',
                           color: const Color.fromARGB(255, 174, 116, 23),
+                          onTap: () => {
+                            Navigator.pushNamed(
+                              context,
+                              '/chat',
+                              arguments: {
+                                'vesselId': "undefined",
+                              },
+                            )
+                          },
                         ),
                         _buildQuickLinkCard(
                           icon: Icons.cloud,

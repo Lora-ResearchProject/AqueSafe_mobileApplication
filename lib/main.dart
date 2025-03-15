@@ -1,5 +1,7 @@
+import 'package:aqua_safe/screens/chat.dart';
 import 'package:aqua_safe/screens/weather_map.dart';
 import 'package:aqua_safe/screens/weather_screen.dart';
+import 'package:aqua_safe/services/predefined_msg_scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login.dart';
@@ -68,6 +70,7 @@ class AquaSafeApp extends StatelessWidget {
         '/edit_account': (context) => const EditAccountScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
         '/weather_map': (context) => const WeatherMapScreen(),
+        '/chat': (context) => const ChatScreen()
       },
     );
   }
@@ -110,6 +113,9 @@ class _SplashScreenState extends State<SplashScreen> {
       sosScheduler.startScheduler(onSOSUpdate: () {
         print("🔄 UI updated: SOS status changed");
       });
+
+      final ChatMessageScheduler chatMessageScheduler = ChatMessageScheduler();
+      chatMessageScheduler.startScheduler();
 
       // Wait for both to finish
       await Future.wait([bleConnection]);

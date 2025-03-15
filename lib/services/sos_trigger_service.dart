@@ -42,7 +42,7 @@ class SOSTriggerService {
       String uniqueMsgId = idService.generateId();
 
       String sosData = jsonEncode({
-        "id": "$vesselId-$uniqueMsgId",
+        "id": "$vesselId|$uniqueMsgId",
         "l": "$latitude|$longitude",
         "s": 1
       });

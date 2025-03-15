@@ -309,18 +309,64 @@ class BluetoothService {
   }
 
   Future<void> sendChatMessage(String message) async {
-    print("Sending SOS alert via chat method...");
-    print("Chat Characteristic details: ");
-    print("UUID: ${chatCharacteristic.characteristicId}");
+    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
+
+    if (chatCharacteristic == null) {
+      print("❌ Chat characteristic is not initialized.");
+      return;
+    }
+
+    if (message.isEmpty) {
+      print("❌ Error: Chat message is empty.");
+      return;
+    }
+
     try {
+      print("📲 Sending Chat Message via BLE");
+
       await _ble.writeCharacteristicWithoutResponse(
         chatCharacteristic,
         value: utf8.encode(message),
       );
-      print("Chat message sent: $message");
+
+      print("✅ Chat message sent via BLE successfully.");
     } catch (e) {
-      print("Error sending chat message: $e");
+      print("❌ Error sending chat message via BLE: $e");
     }
+  }
+
+  void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
+    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
+
+    if (chatCharacteristic == null) {
+      print("❌ Chat characteristic is not initialized.");
+      return;
+    }
+
+    _ble.subscribeToCharacteristic(chatCharacteristic).listen(
+      (data) {
+        if (data.isNotEmpty) {
+          String receivedData = utf8.decode(data);
+          print("📲 Chat Message Received via BLE: $receivedData");
+
+          try {
+            Map<String, dynamic> receivedJson = jsonDecode(receivedData);
+
+            if (receivedJson.containsKey("id") &&
+                receivedJson.containsKey("m")) {
+              onMessageReceived(receivedJson);
+            } else {
+              print("❌ Invalid chat message format: $receivedData");
+            }
+          } catch (e) {
+            print("❌ Error decoding received chat message: $e");
+          }
+        }
+      },
+      onError: (e) {
+        print("❌ Error receiving chat messages via BLE: $e");
+      },
+    );
   }
 
   Future<void> sendWeatherRequest(String weatherRequest) async {
@@ -388,18 +434,6 @@ class BluetoothService {
       print("❌ Error receiving weather data: $e");
       return null;
     }
-  }
-
-  Future<void> listenForChatMessages() async {
-    _ble.subscribeToCharacteristic(chatCharacteristic).listen(
-      (data) {
-        final chatMessage = utf8.decode(data);
-        print("Received chat message: $chatMessage");
-      },
-      onError: (e) {
-        print("Error receiving chat messages: $e");
-      },
-    );
   }
 
   Future<List<Map<String, dynamic>>> listenForHotspotUpdates() async {
