@@ -26,6 +26,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
   String weatherCondition = "Fetching Weather...";
   String locationName = "Fetching location...";
   bool isFetching = false;
+  bool isCurrentLocation = false;
   final WeatherService weatherService = WeatherService();
   final LocationService locationService = LocationService();
   final FishingHotspotService fishingHotspotService = FishingHotspotService();
@@ -81,18 +82,21 @@ class _WeatherScreenState extends State<WeatherScreen> {
     setState(() {
       weatherCondition = "Fetching Weather...";
       weatherPercentage = null;
+      isFetching = true;
     });
 
     double latitude;
     double longitude;
 
     if (selectedNavItem == "Current") {
+      isCurrentLocation = true;
       Position position = await locationService.getCurrentPosition();
       latitude = position.latitude;
       longitude = position.longitude;
       locationName =
           "${latitude.toStringAsFixed(5)}N, ${longitude.toStringAsFixed(5)}E";
     } else {
+      isCurrentLocation = false;
       var hotspot = hotspots.firstWhere(
         (h) => "HS-${h['hotspotId']}" == selectedNavItem,
         orElse: () => {},
@@ -106,14 +110,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
           "${latitude.toStringAsFixed(5)}N, ${longitude.toStringAsFixed(5)}E";
     }
 
-    int? weatherData =
-        await fishingHotspotService.fetchWeatherForHotspot(latitude, longitude);
+    int? weatherData = await weatherService.fetchWeather(latitude, longitude,
+        isCurrentLocation: isCurrentLocation);
 
     if (!mounted) return;
 
     setState(() {
-      weatherPercentage = weatherData ?? 0;
+      weatherPercentage = weatherData;
+      // weatherPercentage = weatherData ?? 0;
       weatherCondition = weatherService.getWeatherCondition(weatherPercentage!);
+      isFetching = false;
     });
   }
 
@@ -243,9 +249,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       ),
                       children: [
                         TextSpan(
-                          text: "${weatherPercentage ?? 0}%",
-                          style: const TextStyle(
-                            fontSize: 60,
+                          text: weatherPercentage == null
+                              ? "Fetching..."
+                              : "$weatherPercentage%",
+                          // text: "${weatherPercentage ?? 0}%",
+                          style: TextStyle(
+                            fontSize: weatherPercentage == null ? 30 : 60,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -273,15 +282,18 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         ? const CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 3)
                         : const Icon(Icons.refresh, size: 30),
-                    label: const Text(
+                    label: Text(
                       "Refresh Weather",
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isFetching ? Colors.grey[400] : Colors.white,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 32),
-                      backgroundColor: Colors.blue,
+                      backgroundColor: isFetching ? Colors.grey : Colors.blue,
                     ),
                   ),
                 ],

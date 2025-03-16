@@ -373,14 +373,9 @@ class BluetoothService {
     final weatherCharacteristic =
         BluetoothDeviceManager().weatherCharacteristic;
 
-    if (!_isConnected) {
-      print("❌ Bluetooth is not connected. Cannot send request.");
-      return;
-    }
-
     try {
       if (weatherCharacteristic != null) {
-        await _ble.writeCharacteristicWithoutResponse(
+        await _ble.writeCharacteristicWithResponse(
           weatherCharacteristic,
           value: utf8.encode(weatherRequest),
         );
