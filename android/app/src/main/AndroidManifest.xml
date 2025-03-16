@@ -8,17 +8,22 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Bluetooth Permissions for Android 11 and below -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- Bluetooth Permissions for Android 11 and below (API 30 and below) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
 
     <!-- Bluetooth Permissions for Android 12+ -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
+    <!-- Required to use BLE scanning -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
+    
     <!-- Permissions for background services to work -->
-    <!-- <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/> -->
+    <!-- <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> -->
 
     <application
         android:label="AquaSafe"
@@ -46,6 +51,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+         <!-- Rung gps in background -->
+        <!-- <service android:name="com.transistorsoft.locationmanager.BackgroundGeolocationService" android:permission="android.permission.FOREGROUND_SERVICE" android:foregroundServiceType="location"/>
+        <receiver android:name="com.transistorsoft.locationmanager.LocationManagerReceiver" android:enabled="true">
+            <intent-filter>
+                <action android:name="com.transistorsoft.locationmanager.ACTION_BROADCAST" />
+            </intent-filter>
+        </receiver> -->
+
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

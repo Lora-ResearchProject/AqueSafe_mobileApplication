@@ -13,7 +13,8 @@ class SOSTriggerService {
   final LocationService _locationService = LocationService();
 
   void handleConfirm(BuildContext context, BluetoothService bluetoothService,
-      BuildContext dialogContext) async {
+      BuildContext dialogContext,
+      {required Function onUpdate}) async {
     try {
       // Access the device from the singleton
       DiscoveredDevice? device = BluetoothDeviceManager().device;
@@ -35,17 +36,19 @@ class SOSTriggerService {
       String latitude = position.latitude.toStringAsFixed(5);
       String longitude = position.longitude.toStringAsFixed(5);
 
+      print("---- Sos send lat: ${latitude}, Lon: ${longitude}");
       // Generate a unique ID using the GenerateUniqueIdService
       GenerateUniqueIdService idService = GenerateUniqueIdService();
       String uniqueMsgId = idService.generateId();
 
       String sosData = jsonEncode({
-        "id": "$vesselId-$uniqueMsgId",
+        "id": "$vesselId|$uniqueMsgId",
         "l": "$latitude|$longitude",
         "s": 1
       });
 
-      await bluetoothService.sendSOSAlert(sosData);
+      // Send SOS and update UI immediately
+      await bluetoothService.sendSOSAlert(sosData, onUpdate);
 
       // Show success dialog
       showDialog(

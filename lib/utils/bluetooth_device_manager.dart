@@ -5,16 +5,14 @@ class BluetoothDeviceManager {
   static final BluetoothDeviceManager _instance =
       BluetoothDeviceManager._internal();
 
-  // The discovered device will be stored here
   DiscoveredDevice? _discoveredDevice;
 
-  // Characteristics to be stored in the singleton
   QualifiedCharacteristic? _sosCharacteristic;
   QualifiedCharacteristic? _gpsCharacteristic;
   QualifiedCharacteristic? _chatCharacteristic;
   QualifiedCharacteristic? _weatherCharacteristic;
+  QualifiedCharacteristic? _hotspotChracteristic;
 
-  // Private constructor
   BluetoothDeviceManager._internal();
 
   // Factory method to access the instance
@@ -32,20 +30,23 @@ class BluetoothDeviceManager {
 
   QualifiedCharacteristic? get weatherCharacteristic => _weatherCharacteristic;
 
+  QualifiedCharacteristic? get hotspotChracteristic => _hotspotChracteristic;
+
   void setDevice(DiscoveredDevice device) {
     _discoveredDevice = device;
   }
 
-  // Set characteristics after connecting to the device
   void setCharacteristics(
       QualifiedCharacteristic sos,
       QualifiedCharacteristic gps,
       QualifiedCharacteristic chat,
-      QualifiedCharacteristic weather) {
+      QualifiedCharacteristic weather,
+      QualifiedCharacteristic hotspot) {
     _sosCharacteristic = sos;
     _gpsCharacteristic = gps;
     _chatCharacteristic = chat;
     _weatherCharacteristic = weather;
+    _hotspotChracteristic = hotspot;
   }
 
   // Optional: Clear the device if needed
@@ -55,5 +56,6 @@ class BluetoothDeviceManager {
     _gpsCharacteristic = null;
     _chatCharacteristic = null;
     _weatherCharacteristic = null;
+    _hotspotChracteristic = null;
   }
 }

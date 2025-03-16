@@ -1,27 +1,28 @@
+import 'package:aqua_safe/screens/chat.dart';
+import 'package:aqua_safe/screens/weather_map.dart';
+import 'package:aqua_safe/screens/weather_screen.dart';
+import 'package:aqua_safe/services/predefined_msg_scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/dashboard.dart';
 import 'screens/hotspots.dart';
-import 'services/gps_scheduler_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/preferences_helper.dart';
 import '../services/bluetooth_service.dart';
+import 'screens/edit_account.dart';
+import 'screens/change_password.dart';
+import '../services/sos_history_scheduler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  // Initialize SharedPreferences
   await SharedPreferences.getInstance();
-
-  // Log all SharedPreferences
   PreferencesHelper.printSharedPreferences();
 
-  // Run the app
   runApp(const AquaSafeApp());
 }
 
@@ -33,12 +34,43 @@ class AquaSafeApp extends StatelessWidget {
     return MaterialApp(
       title: 'AquaSafe',
       initialRoute: '/splash',
+      onGenerateRoute: (settings) {
+        if (settings.name == '/weather') {
+          final args = settings.arguments;
+
+          if (args is Map<String, dynamic>) {
+            return MaterialPageRoute(
+              builder: (context) => WeatherScreen(
+                locationName: args['locationName'] ?? "Unknown Location",
+                latitude: args['latitude'] ?? 0.0,
+                longitude: args['longitude'] ?? 0.0,
+              ),
+            );
+          } else {
+            // Handle the case where arguments are missing
+            print(
+                "⚠️ Warning: Missing or invalid arguments for /weather route.");
+            return MaterialPageRoute(
+              builder: (context) => const WeatherScreen(
+                locationName: "Unknown",
+                latitude: 0.0,
+                longitude: 0.0,
+              ),
+            );
+          }
+        }
+        return null;
+      },
       routes: {
         '/login': (context) => LoginScreen(),
         '/register': (context) => RegisterScreen(),
         '/dashboard': (context) => Dashboard(),
         '/hotspots': (context) => HotspotsScreen(),
         '/splash': (context) => SplashScreen(),
+        '/edit_account': (context) => const EditAccountScreen(),
+        '/change_password': (context) => const ChangePasswordScreen(),
+        '/weather_map': (context) => const WeatherMapScreen(),
+        '/chat': (context) => const ChatScreen()
       },
     );
   }
@@ -53,8 +85,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _isLoading = true;
-  String _loadingMessage = "Connecting to Bluetooth...";
-
+  String _loadingMessage = "Starting Services...";
   @override
   void initState() {
     super.initState();
@@ -67,65 +98,50 @@ class _SplashScreenState extends State<SplashScreen> {
       final String? vesselId = prefs.getString('vesselId');
 
       if (vesselId == null) {
-        Navigator.pushReplacementNamed(context, '/login');
+        _navigateToLogin();
         return;
       }
 
-      // If vesselId exists, proceed with the Bluetooth and GPS Scheduler initialization
-      setState(() {
-        _isLoading = true;
-        _loadingMessage = "Connecting to Bluetooth...";
-      });
+      // Start both services in parallel
+      setState(() =>
+          _loadingMessage = "Connecting to Bluetooth & Starting Services...");
 
-      // Initialize Bluetooth service
       final BluetoothService bluetoothService = BluetoothService();
-      await bluetoothService.scanAndConnect();
+      Future<bool> bleConnection = bluetoothService.scanAndConnect();
 
-      setState(() {
-        _loadingMessage = "Successfully Connected to bluetooth";
+      final SOSHistoryScheduler sosScheduler = SOSHistoryScheduler();
+      sosScheduler.startScheduler(onSOSUpdate: () {
+        print("🔄 UI updated: SOS status changed");
       });
 
-      await Future.delayed(const Duration(seconds: 3));
+      final ChatMessageScheduler chatMessageScheduler = ChatMessageScheduler();
+      chatMessageScheduler.startScheduler();
 
-      // Show loading state before starting scheduler
-      setState(() {
-        _loadingMessage = "Starting GPS Scheduler...";
-      });
+      // Wait for both to finish
+      await Future.wait([bleConnection]);
 
-      // Start the GPS Scheduler
-      final SchedulerService gpsScheduler = SchedulerService();
-      await gpsScheduler.startScheduler();
+      bool bluetoothConnected = await bleConnection;
 
-      setState(() {
-        _loadingMessage = "Successfully started GPS scheduler";
-      });
-
-      await Future.delayed(const Duration(seconds: 3));
-
-      setState(() {
-        _loadingMessage = "Directing to dashboard...";
-      });
-
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Once initialization is done, navigate to the Dashboard
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        Navigator.pushReplacementNamed(context, '/dashboard');
+      if (!bluetoothConnected) {
+        print("⚠️ Bluetooth connection failed.");
       }
+
+      _navigateToDashboard();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _loadingMessage = "Connection failed: \n ${e.toString()}";
-        });
+      print("❌ Error during initialization: $e");
+      _navigateToDashboard();
+    }
+  }
 
-        await Future.delayed(const Duration(seconds: 5));
+  void _navigateToLogin() {
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
 
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
+  void _navigateToDashboard() {
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/dashboard');
     }
   }
 
@@ -134,54 +150,29 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.blue[900],
       body: Center(
-        child: _isLoading
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'AquaSafe',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 26),
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    _loadingMessage,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'AquaSafe',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 26),
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    _loadingMessage,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'AquaSafe',
+              style: TextStyle(
+                fontSize: 38,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
+            ),
+            const SizedBox(height: 26),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(
+              _loadingMessage,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

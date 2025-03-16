@@ -1,80 +1,116 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:aqua_safe/services/gps_scheduler_service.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/bluetooth_device_manager.dart';
+import '../utils/appStateManager.dart';
+// import 'package:android_intent_plus/android_intent.dart';
+// import 'package:android_intent_plus/flag.dart';
 
 class BluetoothService {
+  // ✅ Singleton instance
+  static final BluetoothService _instance = BluetoothService._internal();
+
+  factory BluetoothService() {
+    return _instance;
+  }
+
+  BluetoothService._internal(); // Private constructor
+
   final FlutterReactiveBle _ble = FlutterReactiveBle();
 
   late QualifiedCharacteristic gpsCharacteristic;
   late QualifiedCharacteristic sosCharacteristic;
   late QualifiedCharacteristic chatCharacteristic;
   late QualifiedCharacteristic weatherCharacteristic;
+  late QualifiedCharacteristic hotspotChracteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
 
-  // Global state to manage Bluetooth connection
   bool _isConnected = false;
   bool get isConnected => _isConnected;
   DiscoveredDevice? discoveredDevice;
 
-  // check connection state manually
-  Future<bool> checkConnectionState() async {
-    try {
-      return _isConnected;
-    } catch (e) {
-      print("Error checking Bluetooth connection state: $e");
-      return false;
-    }
-  }
+  final ValueNotifier<bool> isConnectedNotifier = ValueNotifier<bool>(false);
 
-  // Monitor connection continuously every 5 seconds
+  // Future<bool> checkConnectionState() async {
+  //   return _isConnected;
+  // }
+
+  // ✅ Monitor connection every 5 seconds and notify listeners
+  // void monitorConnection() {
+  //   int count = 0;
+  //   Timer.periodic(const Duration(seconds: 1), (timer) async {
+  //     count++;
+  //     print("🔄 BLE connection check run #$count");
+
+  //     bool isConnectedNow = await checkConnectionState();
+
+  //     print("Is connected: $isConnected | Is Connected Now: $isConnectedNow");
+
+  //     if (_isConnected != isConnectedNow) {
+  //       _isConnected = isConnectedNow;
+  //       isConnectedNotifier.value = _isConnected; // Notify UI
+  //       print("📢 Notify changed");
+  //     }
+  //   });
+  // }
+
   void monitorConnection() {
-    Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        if (!_isConnected) {
-          // print("Bluetooth is disconnected. Attempting to reconnect...");
-          // await scanAndConnect();
-        } else {
-          print("Bluetooth is connected.");
-        }
-      } catch (e) {
-        print("Error monitoring Bluetooth connection: $e");
+    _ble.statusStream.listen((status) {
+      bool isConnectedNow = (status == BleStatus.ready) && _isConnected;
+
+      if (_isConnected != isConnectedNow) {
+        _isConnected = isConnectedNow;
+        isConnectedNotifier.value = _isConnected;
+        print("📢 BLE Connection Status Changed: $_isConnected");
       }
     });
   }
 
   Future<void> requestPermissions() async {
-    if (await Permission.location.isDenied ||
-        await Permission.bluetooth.isDenied ||
-        await Permission.bluetoothScan.isDenied ||
-        await Permission.bluetoothConnect.isDenied) {
-      var status = await [
-        Permission.location,
-        Permission.bluetooth,
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-      ].request();
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetooth,
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+      // Permission.locationAlways,
+      // Permission.ignoreBatteryOptimizations,
+    ].request();
 
-      if (status[Permission.location]?.isDenied ?? true) {
-        throw Exception("Location permission denied.");
-      }
-      // if (status[Permission.bluetooth]?.isDenied ?? true) {
-      //   throw Exception("Bluetooth permission denied.");
-      // }
-      if (status[Permission.bluetoothScan]?.isDenied ?? true) {
-        throw Exception("Bluetooth Scan permission denied.");
-      }
-      if (status[Permission.bluetoothConnect]?.isDenied ?? true) {
-        throw Exception("Bluetooth Connect permission denied.");
-      }
+    // if (statuses[Permission.bluetooth]?.isDenied ?? true) {
+    //   throw Exception("❌ Bluetooth permission denied.");
+    // }
+    if (statuses[Permission.bluetoothScan]?.isDenied ?? true) {
+      throw Exception("❌ Bluetooth Scan permission denied.");
     }
+    if (statuses[Permission.bluetoothConnect]?.isDenied ?? true) {
+      throw Exception("❌ Bluetooth Connect permission denied.");
+    }
+    if (statuses[Permission.location]?.isDenied ?? true) {
+      throw Exception(
+          "❌ Location permission denied. BLE requires location access.");
+    }
+    // if (statuses[Permission.locationAlways]?.isDenied ?? true) {
+    //   throw Exception(
+    //       "❌ Background location permission denied. App cannot send GPS data in background.");
+    // }
+
+    // if (statuses[Permission.ignoreBatteryOptimizations]?.isDenied ?? true) {
+    //   final intent = AndroidIntent(
+    //     action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+    //     data: 'package:com.example.aqua_safe',
+    //     flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    //   );
+    //   await intent.launch();
+    //   throw Exception("❌ Ignore Battery Optimizations denied.");
+    // }
   }
 
-  Future<void> scanAndConnect() async {
+  Future<bool> scanAndConnect() async {
     await requestPermissions();
 
     late StreamSubscription<DiscoveredDevice> scanSubscription;
@@ -86,7 +122,7 @@ class BluetoothService {
           withServices: [Uuid.parse(Constants.serviceUuid)]).listen(
         (device) async {
           if (device.name == "ESP32-MultiService") {
-            print("Target ESP32 device found. Connecting...");
+            print("✅ Target ESP32 device found. Connecting...");
             deviceFound = true;
 
             await scanSubscription.cancel();
@@ -100,14 +136,16 @@ class BluetoothService {
         },
       );
 
-      await Future.delayed(const Duration(seconds: 20));
+      await Future.delayed(const Duration(seconds: 5));
 
       if (!deviceFound) {
-        throw Exception("Target ESP32 device not found during scan.");
+        print("⚠️ Target ESP32 device not found during scan.");
+        return false;
       }
+      return true;
     } catch (e) {
       print("--- Error during scan and connect: $e");
-      rethrow;
+      return false;
     } finally {
       await scanSubscription.cancel();
     }
@@ -118,16 +156,24 @@ class BluetoothService {
       print(">>> Connecting to device: ${device.name}...");
 
       connectionSubscription =
-          _ble.connectToDevice(id: device.id).listen((event) {
+          _ble.connectToDevice(id: device.id).listen((event) async {
         if (event.connectionState == DeviceConnectionState.connected) {
           _isConnected = true;
           print("=== Device connected.");
-
           initializeCharacteristics(device);
+
+          await SchedulerService().startScheduler();
+
+          // ✅ Request higher MTU (maximum 512 bytes, but actual depends on ESP32)
+          int requestedMTU = 250;
+          int mtu =
+              await _ble.requestMtu(deviceId: device.id, mtu: requestedMTU);
+          print("🔄 Requested MTU: $mtu");
         } else if (event.connectionState ==
             DeviceConnectionState.disconnected) {
           _isConnected = false;
-          print("=== Device disconnected.");
+          print("=== Device disconnected. Retrying...");
+          SchedulerService().stopScheduler();
         }
       });
     } catch (e) {
@@ -136,7 +182,6 @@ class BluetoothService {
     }
   }
 
-  // Method to initialize characteristics
   Future<void> initializeCharacteristics(DiscoveredDevice device) async {
     try {
       sosCharacteristic = QualifiedCharacteristic(
@@ -163,9 +208,18 @@ class BluetoothService {
         deviceId: device.id,
       );
 
-      // Store them in the singleton
-      BluetoothDeviceManager().setCharacteristics(sosCharacteristic,
-          gpsCharacteristic, chatCharacteristic, weatherCharacteristic);
+      hotspotChracteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.hotspotChracteristicUuid),
+        serviceId: Uuid.parse(Constants.serviceUuid),
+        deviceId: device.id,
+      );
+
+      BluetoothDeviceManager().setCharacteristics(
+          sosCharacteristic,
+          gpsCharacteristic,
+          chatCharacteristic,
+          weatherCharacteristic,
+          hotspotChracteristic);
 
       print("Device connected and characteristics initialized.");
     } catch (e) {
@@ -177,7 +231,7 @@ class BluetoothService {
     final gpsCharacteristic = BluetoothDeviceManager().gpsCharacteristic;
     try {
       if (gpsCharacteristic != null) {
-        await _ble.writeCharacteristicWithoutResponse(
+        await _ble.writeCharacteristicWithResponse(
           gpsCharacteristic,
           value: utf8.encode(gpsData),
         );
@@ -187,7 +241,8 @@ class BluetoothService {
             "Device not connected or GPS characteristic not initialized.");
       }
     } catch (e) {
-      print("Error sending GPS data: $e");
+      print("Error sending GPS data: ${e.toString().split(':').last.trim()}");
+      print("Write failed: $e");
     }
   }
 
@@ -211,7 +266,7 @@ class BluetoothService {
     }
   }
 
-  Future<void> sendSOSAlert(String sosData) async {
+  Future<void> sendSOSAlert(String sosData, Function onUpdate) async {
     final sosCharacteristic = BluetoothDeviceManager().sosCharacteristic;
     try {
       // Ensure the device is connected and the characteristic is initialized
@@ -227,18 +282,24 @@ class BluetoothService {
         );
         print("SOS alert sent via bluetooth: $sosData");
 
-        // Store SOS data in SharedPreferences
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
         final Map<String, dynamic> sosDataMap = jsonDecode(sosData);
-        await prefs.setString(
-            'lastSOS',
-            jsonEncode({
-              'id': sosDataMap['id'],
-              'latitude': sosDataMap['l'].split('|')[0],
-              'longitude': sosDataMap['l'].split('|')[1],
-              'status': 'Active', // SOS status
-              'timestamp': DateTime.now().toIso8601String()
-            }));
+
+        // Create the SOS object with additional fields
+        Map<String, dynamic> formattedSOSData = {
+          'id': sosDataMap['id'],
+          'latitude': sosDataMap['l'].split('|')[0],
+          'longitude': sosDataMap['l'].split('|')[1],
+          'status': 'Active',
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+
+        // Save to State Manager
+        AppStateManager().setLatestSOS(formattedSOSData);
+
+        // Save to SharedPreferences (for persistence)
+        // await AppStateManager().saveSOSToLocal();
+        print("✅ Latest SOS saved in State Manager and SharedPreferences.");
+        onUpdate();
       } else {
         throw Exception("SOS characteristic is not initialized.");
       }
@@ -248,45 +309,163 @@ class BluetoothService {
   }
 
   Future<void> sendChatMessage(String message) async {
-    print("Sending SOS alert via chat method...");
-    print("Chat Characteristic details: ");
-    print("UUID: ${chatCharacteristic.characteristicId}");
+    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
+
+    if (chatCharacteristic == null) {
+      print("❌ Chat characteristic is not initialized.");
+      return;
+    }
+
+    if (message.isEmpty) {
+      print("❌ Error: Chat message is empty.");
+      return;
+    }
+
     try {
+      print("📲 Sending Chat Message via BLE");
+
       await _ble.writeCharacteristicWithoutResponse(
         chatCharacteristic,
         value: utf8.encode(message),
       );
-      print("Chat message sent: $message");
+
+      print("✅ Chat message sent via BLE successfully.");
     } catch (e) {
-      print("Error sending chat message: $e");
+      print("❌ Error sending chat message via BLE: $e");
     }
   }
 
-  Future<void> listenForWeatherUpdates() async {
-    _ble.subscribeToCharacteristic(weatherCharacteristic).listen(
-      (data) {
-        final weatherData = utf8.decode(data);
-        print("Received weather data: $weatherData");
-      },
-      onError: (e) {
-        print("Error receiving weather updates: $e");
-      },
-    );
-  }
+  void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
+    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
 
-  Future<void> listenForChatMessages() async {
+    if (chatCharacteristic == null) {
+      print("❌ Chat characteristic is not initialized.");
+      return;
+    }
+
     _ble.subscribeToCharacteristic(chatCharacteristic).listen(
       (data) {
-        final chatMessage = utf8.decode(data);
-        print("Received chat message: $chatMessage");
+        if (data.isNotEmpty) {
+          String receivedData = utf8.decode(data);
+          print("📲 Chat Message Received via BLE: $receivedData");
+
+          try {
+            Map<String, dynamic> receivedJson = jsonDecode(receivedData);
+
+            if (receivedJson.containsKey("id") &&
+                receivedJson.containsKey("m")) {
+              onMessageReceived(receivedJson);
+            } else {
+              print("❌ Invalid chat message format: $receivedData");
+            }
+          } catch (e) {
+            print("❌ Error decoding received chat message: $e");
+          }
+        }
       },
       onError: (e) {
-        print("Error receiving chat messages: $e");
+        print("❌ Error receiving chat messages via BLE: $e");
       },
     );
   }
 
-  // Cancel the connection subscription when no longer needed
+  Future<void> sendWeatherRequest(String weatherRequest) async {
+    final weatherCharacteristic =
+        BluetoothDeviceManager().weatherCharacteristic;
+
+    try {
+      if (weatherCharacteristic != null) {
+        await _ble.writeCharacteristicWithResponse(
+          weatherCharacteristic,
+          value: utf8.encode(weatherRequest),
+        );
+        print("📡✅ Weather request sent via Bluetooth: $weatherRequest");
+      } else {
+        throw Exception("Weather characteristic not initialized.");
+      }
+    } catch (e) {
+      print("❌ Error sending weather request: $e");
+    }
+  }
+
+  Future<int?> listenForWeatherUpdates(String expectedId) async {
+    final weatherCharacteristic =
+        BluetoothDeviceManager().weatherCharacteristic;
+
+    if (weatherCharacteristic == null) {
+      print("❌ Weather characteristic is not initialized.");
+      return null;
+    }
+
+    try {
+      final responseData = await _ble.readCharacteristic(weatherCharacteristic);
+
+      if (responseData.isEmpty) {
+        print("❌ Received empty weather data.");
+        return null;
+      }
+
+      String response = utf8.decode(responseData);
+      print("🌤️ Raw Weather Response: $response");
+
+      Map<String, dynamic> weatherResponse = jsonDecode(response);
+
+      if (!weatherResponse.containsKey("id") ||
+          !weatherResponse.containsKey("w")) {
+        print("❌ Invalid weather response format.");
+        return null;
+      }
+
+      String receivedId = weatherResponse["id"];
+
+      if (receivedId != expectedId) {
+        print("⚠️ Mismatched weather response. Ignoring.");
+        return null;
+      }
+
+      print("✅ Matched Response: Weather Data = ${weatherResponse["w"]}%");
+      return weatherResponse["w"];
+    } catch (e) {
+      print("❌ Error receiving weather data: $e");
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> listenForHotspotUpdates() async {
+    final hotspotCharacteristic = BluetoothDeviceManager().hotspotChracteristic;
+
+    if (hotspotCharacteristic == null) {
+      print("❌ Hotspot characteristic is not initialized.");
+      return [];
+    }
+
+    try {
+      final responseData = await _ble.readCharacteristic(hotspotCharacteristic);
+
+      if (responseData.isEmpty) {
+        print("❌ Received empty hotspot data.");
+        return [];
+      }
+
+      String response = utf8.decode(responseData);
+      print("📍 Raw Hotspot Response: $response");
+
+      // 🔹 Try parsing response safely
+      final parsedResponse = jsonDecode(response);
+
+      if (parsedResponse is List) {
+        print("✅ Hotspot Data Received Successfully.");
+        return parsedResponse.cast<Map<String, dynamic>>(); // Safe casting
+      }
+
+      print("❌ Invalid hotspot response format (expected a List).");
+      return [];
+    } catch (e) {
+      print("❌ Error receiving hotspot data: $e");
+      return [];
+    }
+  }
+
   void dispose() {
     connectionSubscription?.cancel();
   }

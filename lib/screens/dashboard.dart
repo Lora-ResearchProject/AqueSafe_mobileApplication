@@ -1,10 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:aqua_safe/cards/bluetooth_warning_card.dart';
+import 'package:aqua_safe/screens/chat.dart';
+import 'package:aqua_safe/screens/sos_alert_details_screen.dart';
+import 'package:aqua_safe/services/sos_history_scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../services/sos_trigger_service.dart';
 import '../services/bluetooth_service.dart';
 import '../screens/sos_alerts_list.dart';
+import '../screens/settings.dart';
+import '../utils/appStateManager.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({Key? key}) : super(key: key);
@@ -14,244 +21,79 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
+  int _currentIndex = 0;
   String sosMessage = '';
-  String sosTimeAgo = '';
-  bool isSOSInProgress = false;
+  String? sosTimeAgo = '';
+  bool isLoading = true;
+  bool isSOSActive = false;
+  late List<Widget> _screens;
 
-  // Initialize SOSTriggerService
+  // Initialize services
   final SOSTriggerService _sosTriggerService = SOSTriggerService();
   final BluetoothService _bluetoothService = BluetoothService();
 
   @override
   void initState() {
     super.initState();
+    _bluetoothService.monitorConnection();
+    print(AppStateManager().isSOSInProgress);
+    print(AppStateManager().sosTimeAgo);
+    print(AppStateManager().status);
+
     _loadSOSStatus();
+
+    SOSHistoryScheduler().startScheduler(onSOSUpdate: _loadSOSStatus);
+
+    _screens = [
+      _buildDashboardContent(),
+      const SettingsScreen(),
+    ];
   }
 
-  // Load SOS status from SharedPreferences
+  // Load SOS status from local storage
   Future<void> _loadSOSStatus() async {
+    setState(() => isLoading = true);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? lastSOS = prefs.getString('lastSOS');
+    final String? lastSOSData = prefs.getString('lastSOS');
 
-    if (lastSOS != null) {
-      final sosData = jsonDecode(lastSOS);
-      final String timestamp = sosData['timestamp'];
-      final DateTime sosTime = DateTime.parse(timestamp);
-      //final DateTime now = DateTime.now();
-
-      final String timeAgo = timeago.format(sosTime, locale: 'en_short');
+    if (lastSOSData != null) {
+      Map<String, dynamic> lastSOS = jsonDecode(lastSOSData);
+      DateTime sosTime = DateTime.parse(lastSOS['timestamp']);
 
       setState(() {
-        sosMessage = 'SOS Alert in Progress';
-        sosTimeAgo = (timeAgo == 'now') ? 'now' : '$timeAgo ago';
-        isSOSInProgress = true;
+        isSOSActive = true;
+        sosTimeAgo = timeago.format(sosTime, locale: 'en_short');
+      });
+    } else {
+      setState(() {
+        isSOSActive = false;
+        isLoading = false;
       });
     }
-  }
 
-  // Dashboard({Key? key})
-  //     : _sosTriggerService = SOSTriggerService(),
-  //       super(key: key);
+    setState(() => isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF151d67), // Dark blue background
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Connection Status
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildConnectionStatus(
-                    label: 'Bluetooth',
-                    isConnected: true, // Dynamically update this
-                  ),
-                  _buildConnectionStatus(
-                    label: 'LoRa',
-                    isConnected: false, // Dynamically update this
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Large SOS Button
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    _showSOSConfirmationDialog(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 24.0,
-                      horizontal: 80.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    "TRIGGER SOS",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Notifications Section
-              const Text(
-                'Notifications',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              if (isSOSInProgress)
-                GestureDetector(
-                  // onTap: () {
-                  //   Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //         builder: (context) => SOSAlertDetailsScreen()),
-                  //   );
-                  // },
-                  child: Container(
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(
-                          255, 95, 14, 14), // Dark red background
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            // Info Icon
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-
-                            // SOS Alert Text
-                            Expanded(
-                              child: Text(
-                                'SOS Alert in Progress',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-
-                            // Active Status
-                            CircleAvatar(
-                              backgroundColor: Colors.green,
-                              radius: 8,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const SizedBox(width: 36),
-                            Text(
-                              sosTimeAgo,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w300,
-                              ),
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 20),
-
-              // Quick Links
-              const Text(
-                'Quick Links',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Quick Links Grid
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  children: [
-                    _buildQuickLinkCard(
-                      icon: Icons.anchor,
-                      label: 'Fishing Spots',
-                      color: const Color.fromARGB(255, 36, 163, 183),
-                      onTap: () {
-                        Navigator.pushNamed(context, '/hotspots');
-                      },
-                    ),
-                    _buildQuickLinkCard(
-                      icon: Icons.sos,
-                      label: 'SOS Alerts',
-                      color: const Color.fromARGB(255, 195, 41, 59),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => SOSAlertScreen()),
-                        );
-                      },
-                    ),
-                    _buildQuickLinkCard(
-                      icon: Icons.chat,
-                      label: 'Chat',
-                      color: const Color.fromARGB(255, 174, 116, 23),
-                    ),
-                    _buildQuickLinkCard(
-                      icon: Icons.cloud,
-                      label: 'Weather',
-                      color: const Color.fromARGB(255, 1, 95, 142),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      // Bottom Navigation Bar
+      backgroundColor: const Color(0xFF151d67),
+      body: isLoading
+          ? _buildLoadingIndicator()
+          : (_currentIndex == 0
+              ? _buildDashboardContent()
+              : const SettingsScreen()),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF1C3D72),
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          if (index == 0) {
+            _loadSOSStatus(); // Reload SOS status when navigating back to Home
+          }
+        },
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         items: const [
@@ -268,6 +110,273 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: CircularProgressIndicator(color: Colors.white),
+    );
+  }
+
+  // Build Dashboard Content
+  Widget _buildDashboardContent() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
+    return SafeArea(
+      child: Column(
+        children: [
+          // Bluetooth connection warning
+          ValueListenableBuilder<bool>(
+            valueListenable: _bluetoothService.isConnectedNotifier,
+            builder: (context, isConnected, child) {
+              return BluetoothWarningCard(isConnected: isConnected);
+            },
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildConnectionStatus(
+                        label: 'Bluetooth',
+                        isConnected: true,
+                      ),
+                      _buildConnectionStatus(
+                        label: 'LoRa',
+                        isConnected: false,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // SOS Trigger Button
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _showSOSConfirmationDialog(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 24.0,
+                          horizontal: 80.0,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "TRIGGER SOS",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Notifications Section
+                  const Text(
+                    'Notifications',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Show latest SOS if active
+                  isSOSActive
+                      ? GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => SOSDetailView()),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: const Color.fromARGB(255, 134, 10, 10),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'SOS Alert in Progress',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const CircleAvatar(
+                                      backgroundColor:
+                                          Color.fromARGB(255, 105, 245, 110),
+                                      radius: 8,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const SizedBox(width: 36),
+                                    Text(
+                                      sosTimeAgo ?? "Unknown",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w300,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
+                        )
+                      : const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text(
+                              "No active SOS alerts.",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                  const SizedBox(height: 20),
+
+                  // Quick Links
+                  const Text(
+                    'Quick Links',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Quick Links Grid
+                  Expanded(
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      children: [
+                        _buildQuickLinkCard(
+                          icon: Icons.anchor,
+                          label: 'Fishing Spots',
+                          color: const Color.fromARGB(255, 36, 163, 183),
+                          onTap: () {
+                            Navigator.pushNamed(context, '/hotspots');
+                          },
+                        ),
+                        _buildQuickLinkCard(
+                          icon: Icons.sos,
+                          label: 'SOS Alerts',
+                          color: const Color.fromARGB(255, 195, 41, 59),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => SOSAlertScreen()),
+                            );
+                          },
+                        ),
+                        _buildQuickLinkCard(
+                          icon: Icons.chat,
+                          label: 'Chat',
+                          color: const Color.fromARGB(255, 174, 116, 23),
+                          onTap: () => {
+                            Navigator.pushNamed(
+                              context,
+                              '/chat',
+                              arguments: {
+                                'vesselId': "undefined",
+                              },
+                            )
+                          },
+                        ),
+                        _buildQuickLinkCard(
+                          icon: Icons.cloud,
+                          label: 'Weather',
+                          color: const Color.fromARGB(255, 1, 95, 142),
+                          onTap: () => {
+                            Navigator.pushNamed(
+                              context,
+                              '/weather',
+                              arguments: {
+                                'locationName': "undefined",
+                                'latitude': 0.0,
+                                'longitude': 0.0,
+                              },
+                            )
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  /// Connection Status Widget
+  Widget _buildConnectionStatus(
+      {required String label, required bool isConnected}) {
+    return Row(
+      children: [
+        Icon(
+          isConnected ? Icons.check_circle : Icons.cancel,
+          color: isConnected ? Colors.green : Colors.red,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          "$label: ${isConnected ? 'Connected' : 'Disconnected'}",
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ],
+    );
+  }
+
+  /// Quick Link Card Widget
   Widget _buildQuickLinkCard({
     required IconData icon,
     required String label,
@@ -292,10 +401,10 @@ class _DashboardState extends State<Dashboard> {
                 size: 40,
                 color: Colors.white,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -308,23 +417,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildConnectionStatus(
-      {required String label, required bool isConnected}) {
-    return Row(
-      children: [
-        Icon(
-          isConnected ? Icons.check_circle : Icons.cancel,
-          color: isConnected ? Colors.green : Colors.red,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          "$label: ${isConnected ? 'Connected' : 'Disconnected'}",
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
-      ],
-    );
-  }
-
+  /// SOS Confirmation Dialog
   void _showSOSConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -371,7 +464,9 @@ class _DashboardState extends State<Dashboard> {
           ),
           ElevatedButton(
             onPressed: () => _sosTriggerService.handleConfirm(
-                context, _bluetoothService, ctx),
+                context, _bluetoothService, ctx,
+                onUpdate:
+                    _loadSOSStatus), // Pass the callback to reload SOS status,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 18, 115, 194),
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),
@@ -390,36 +485,6 @@ class _DashboardState extends State<Dashboard> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class NotificationItem extends StatelessWidget {
-  final IconData icon;
-  final String message;
-
-  const NotificationItem({
-    Key? key,
-    required this.icon,
-    required this.message,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.white, size: 24),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            message,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
