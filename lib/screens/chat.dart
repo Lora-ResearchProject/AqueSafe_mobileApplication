@@ -3,7 +3,6 @@ import 'package:aqua_safe/services/chat_service.dart';
 import 'package:aqua_safe/services/generate_unique_id_service.dart';
 import 'package:aqua_safe/services/predefined_msg_scheduler.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -17,6 +16,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
 
   List<Map<String, dynamic>> messages = [];
+  List<Map<String, dynamic>> allMessages = []; // Store all messages
   List<String> sentMessages = []; // Store sent messages
   List<String> receivedMessages = []; // Store received messages
   String selectedMessage = "";
@@ -32,16 +32,54 @@ class _ChatScreenState extends State<ChatScreen> {
     // Start listening for BLE chat messages
     _chatService.startListeningForMessages((message) {
       setState(() {
-        receivedMessages.add("[${message['m']}] - Received");
+        allMessages.add({
+          'message': "[${message['m']}] - Received",
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'type': 'received'
+        });
+        allMessages.sort((a, b) =>
+            a['timestamp'].compareTo(b['timestamp'])); // Sort by timestamp
+        print(
+            "-------- Received chat message added to receivedMsg list successfully ----------");
       });
     });
   }
 
+  // Load messages from SharedPreferences
   Future<void> _loadMessages() async {
-    messages = await ChatMessageScheduler().getCachedChatMessages();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
+    for (String chatData in chatHistory) {
+      Map<String, dynamic> chatEntry = jsonDecode(chatData);
+      String msgId = chatEntry["id"];
+      String message = chatEntry["msg"];
+      int timestamp = GenerateUniqueIdService().getTimestampFromId(msgId);
+
+      if (msgId.startsWith("S-")) {
+        sentMessages.add(message);
+        allMessages
+            .add({'message': message, 'timestamp': timestamp, 'type': 'sent'});
+      } else if (msgId.startsWith("R-")) {
+        receivedMessages.add(message);
+        allMessages.add(
+            {'message': message, 'timestamp': timestamp, 'type': 'received'});
+      }
+    }
+
+    // Sort messages by timestamp
+    allMessages.sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
+
     setState(() {});
+
+    if (sentMessages.isNotEmpty) {
+      isFirstMessageSent = true;
+    }
+
+    messages = await ChatMessageScheduler().getCachedChatMessages();
   }
 
+  // Send message
   Future<void> _sendMessage() async {
     if (selectedMessageNumber.isEmpty) {
       print("❌ Error: No message selected.");
@@ -54,6 +92,10 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    GenerateUniqueIdService idService = GenerateUniqueIdService();
+    String messageId = idService.generateId();
+    String prefixedMessageId = "S-$messageId"; // Sent message ID
+
     await _chatService.sendChatMessage(messageNumber);
 
     setState(() {
@@ -61,19 +103,28 @@ class _ChatScreenState extends State<ChatScreen> {
       selectedNumbers.clear();
       selectedMessageNumber = "";
 
-      // ✅ Save sent message for display - need to modify to cache locally and display history
+      // Add the sent message to the sentMessages list
       final sentMsg = messages.firstWhere(
         (msg) => msg['messageNumber'] == messageNumber,
         orElse: () => {},
       );
 
       if (sentMsg.isNotEmpty) {
-        sentMessages
-            .add("[${sentMsg['messageNumber']}] - ${sentMsg['message']}");
+        String formattedMsg = "[$messageNumber] - ${sentMsg['message']}";
+        sentMessages.add(formattedMsg);
+
+        allMessages.add({
+          'message': formattedMsg,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'type': 'sent'
+        });
+
+        _chatService.storeMessageLocally(prefixedMessageId, formattedMsg);
       }
     });
   }
 
+  // Select number for predefined message
   void _selectNumber(int number) {
     setState(() {
       if (selectedNumbers.length < 2) {
@@ -143,50 +194,38 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
 
-          // Display Received & Sent Messages
+          // Display Received & Sent Messages if they exist
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                for (var msg in receivedMessages)
+                for (var msg in allMessages)
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: msg['type'] == 'received'
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey[700],
+                        color: msg['type'] == 'received'
+                            ? Colors.white
+                            : const Color.fromARGB(255, 163, 226, 255),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(msg,
+                      child: Text(msg['message'],
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 18)),
-                    ),
-                  ),
-                for (var msg in sentMessages)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.lightBlueAccent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(msg,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 18)),
+                              color: Colors.black, fontSize: 18)),
                     ),
                   ),
               ],
             ),
           ),
 
+          // Display predefined messages if no first message is sent
           if (!isFirstMessageSent)
             Expanded(
-              // ✅ Takes full available space
               child: Container(
                 width: double.infinity,
                 margin:
@@ -266,7 +305,7 @@ class _ChatScreenState extends State<ChatScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: selectedMessageNumber.isNotEmpty
                     ? Colors.white
-                    : Colors.grey.shade600, 
+                    : Colors.grey.shade600,
                 minimumSize: const Size(double.infinity, 55),
                 padding:
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 50),
@@ -275,7 +314,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   fontWeight: FontWeight.bold,
                   color: selectedMessageNumber.isNotEmpty
                       ? const Color(0xFF151d67)
-                      : Colors.grey.shade400, 
+                      : Colors.grey.shade400,
                 ),
               ),
               child: Text(
@@ -283,7 +322,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: TextStyle(
                   color: selectedMessageNumber.isNotEmpty
                       ? const Color(0xFF151d67)
-                      : Colors.grey.shade400, 
+                      : Colors.grey.shade400,
                 ),
               ),
             ),

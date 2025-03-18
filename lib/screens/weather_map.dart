@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:aqua_safe/services/location_service.dart';
-import 'package:aqua_safe/screens/weather_screen.dart';
 
 class WeatherMapScreen extends StatefulWidget {
   const WeatherMapScreen({super.key});

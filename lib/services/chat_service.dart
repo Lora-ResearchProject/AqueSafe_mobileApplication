@@ -33,6 +33,20 @@ class ChatService {
     }
   }
 
+  Future<void> storeMessageLocally(String messageId, String message) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
+
+    chatHistory.add(jsonEncode({"id": messageId, "msg": message}));
+
+    if (chatHistory.length > 10) {
+      chatHistory.removeAt(0);
+    }
+
+    await prefs.setStringList("chatHistory", chatHistory);
+  }
+
   void startListeningForMessages(
       Function(Map<String, dynamic>) onMessageReceived) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -56,6 +70,8 @@ class ChatService {
       if (senderVesselId == vesselId) {
         print("✅ Chat message received for this vessel: $message");
         onMessageReceived(message);
+        storeMessageLocally("R-${receivedId.split('|')[1]}",
+            "[${message['m']}] - Received");
       } else {
         print("⚠️ Ignoring message from another vessel: $message");
       }
