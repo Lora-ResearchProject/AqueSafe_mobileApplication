@@ -17,12 +17,21 @@ class GenerateUniqueIdService {
     return base62;
   }
 
-  // Generates a unique ID based on the current timestamp
   String generateId() {
     // Get the current timestamp in milliseconds
     int timestampMs = DateTime.now().millisecondsSinceEpoch;
 
     // Convert timestamp to Base62
     return toBase62(timestampMs);
+  }
+
+  // Get timestamp from ID
+  int getTimestampFromId(String id) {
+    // Convert the base62 ID back to a number (timestamp)
+    int timestamp = 0;
+    for (int i = 0; i < id.length; i++) {
+      timestamp = timestamp * 62 + _chars.indexOf(id[i]);
+    }
+    return timestamp;
   }
 }

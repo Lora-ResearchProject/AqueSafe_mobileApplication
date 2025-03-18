@@ -318,15 +318,7 @@ class _DashboardState extends State<Dashboard> {
                           icon: Icons.chat,
                           label: 'Chat',
                           color: const Color.fromARGB(255, 174, 116, 23),
-                          onTap: () => {
-                            Navigator.pushNamed(
-                              context,
-                              '/chat',
-                              arguments: {
-                                'vesselId': "undefined",
-                              },
-                            )
-                          },
+                          onTap: () => {Navigator.pushNamed(context, '/chat')},
                         ),
                         _buildQuickLinkCard(
                           icon: Icons.cloud,
