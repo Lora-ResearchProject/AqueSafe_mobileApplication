@@ -14,6 +14,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
+  final ChatMessageScheduler _chatMessageScheduler = ChatMessageScheduler();
   List<Map<String, dynamic>> messages = [];
   String selectedMessage = "";
   String selectedMessageNumber = "";
@@ -26,11 +27,23 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMessages();
 
     // Start listening for BLE chat messages
-    _chatService.startListeningForMessages((message) {
+    _chatService.startListeningForMessages((message) async {
       if (mounted) {
+        // Retrieve the message content using message number
+        List<Map<String, dynamic>> cachedMessages =
+            await _chatMessageScheduler.getCachedChatMessages();
+        Map<String, dynamic>? msgEntry = cachedMessages.firstWhere(
+          (msg) => msg['messageNumber'] == message['m'],
+          orElse: () => {},
+        );
+
+        String messageContent =
+            msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
+
+        String formattedMsg = "[${message['m']}] - $messageContent";
         setState(() {
           messages.add({
-            'message': "[${message['m']}] - Received",
+            'message': formattedMsg,
             'timestamp': DateTime.now().millisecondsSinceEpoch,
             'type': 'received',
           });
@@ -68,14 +81,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
     await _chatService.sendChatMessage(messageNumber);
 
-    // Manually add the sent message to the UI
-    String formattedMsg = "[$selectedMessageNumber] - Sent";
+    // Get the message content from the predefined messages list
+    List<Map<String, dynamic>> cachedMessages =
+        await _chatMessageScheduler.getCachedChatMessages();
+    Map<String, dynamic>? msgEntry = cachedMessages.firstWhere(
+      (msg) => msg['messageNumber'] == messageNumber,
+      orElse: () => {},
+    );
+
+    String messageContent =
+        msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
+
+    String formattedMsg = "[$messageNumber] - $messageContent";
+
     setState(() {
       isFirstMessageSent = true;
       selectedMessageNumber = "";
       selectedMessage = "";
 
-      // Add the sent message
       messages.add({
         'message': formattedMsg,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
