@@ -21,6 +21,7 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   List<bool> isLoadingHotspots = [];
   bool hasHotspotError = false;
   final List<Map<String, double>> destinations = [];
+  late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
 
   Map<String, double>? userLocation;
   ui.Image? markerImage;
@@ -38,6 +39,7 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
 
   @override
   void dispose() {
+    _accelerometerSubscription.cancel();  // Cancel this stream listener!
     _locationUpdateTimer.cancel();
     super.dispose();
   }
@@ -131,6 +133,8 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
       desiredAccuracy: LocationAccuracy.high,
     );
 
+    if (!mounted) return;
+
     setState(() {
       userLocation = {'lat': position.latitude, 'lng': position.longitude};
     });
@@ -143,8 +147,8 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   }
 
   void _initializeSensors() {
-    accelerometerEvents.listen((AccelerometerEvent event) {
-      // Calculate the rotation based on accelerometer data
+    _accelerometerSubscription = accelerometerEvents.listen((event) {
+      if (!mounted) return;
       setState(() {
         arrowRotation = math.atan2(event.y, event.x);
       });
