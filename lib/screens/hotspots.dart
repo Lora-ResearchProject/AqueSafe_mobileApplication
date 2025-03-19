@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
+import '../services/fishing_hotspot_service.dart';
+import '../services/location_service.dart';
 
 class HotspotsScreen extends StatefulWidget {
   const HotspotsScreen({Key? key}) : super(key: key);
@@ -13,11 +15,12 @@ class HotspotsScreen extends StatefulWidget {
 }
 
 class _HotspotsScreenState extends State<HotspotsScreen> {
-  final List<Map<String, double>> destinations = [
-    {'lat': -18.2871, 'lng': 147.6992},
-    {'lat': 34.0522, 'lng': -118.2437},
-    {'lat': 51.5074, 'lng': -0.1278},
-  ];
+  final FishingHotspotService fishingHotspotService = FishingHotspotService();
+  final LocationService locationService = LocationService();
+  List<Map<String, dynamic>> hotspots = [];
+  List<bool> isLoadingHotspots = [];
+  bool hasHotspotError = false;
+  final List<Map<String, double>> destinations = [];
 
   Map<String, double>? userLocation;
   ui.Image? markerImage;
@@ -30,6 +33,7 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     _loadMarkerImage();
     _initializeSensors();
     _startLocationUpdateTimer();
+    _fetchFishingHotspots();
   }
 
   @override
@@ -37,6 +41,55 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     _locationUpdateTimer.cancel();
     super.dispose();
   }
+
+  Future<void> _fetchFishingHotspots() async {
+    setState(() {
+      isLoadingHotspots = List.filled(3, true); // Assume 3 slots are loading
+      hotspots = [];
+      destinations.clear(); // Clear existing destinations
+    });
+
+    try {
+      Position position = await locationService.getCurrentPosition();
+      double latitude = position.latitude;
+      double longitude = position.longitude;
+
+      print("📡 Requesting hotspot data via BLE...");
+      List<Map<String, dynamic>> fetchedHotspots =
+          await fishingHotspotService.fetchSuggestedFishingHotspots(latitude, longitude);
+
+      if (fetchedHotspots.isNotEmpty) {
+        setState(() {
+          hotspots = fetchedHotspots;
+          isLoadingHotspots = List.filled(fetchedHotspots.length, false);
+          hasHotspotError = false;
+          // Map the hotspot list to destinations
+          destinations.clear();
+          destinations.addAll(fetchedHotspots.map((hotspot) {
+            return {
+              'lat': hotspot['latitude'] as double,
+              'lng': hotspot['longitude'] as double,
+            };
+          }).toList());
+        });
+
+        print("✅ Hotspots successfully mapped to destinations: ${destinations.length} items.");
+      } else {
+        setState(() {
+          hasHotspotError = true;
+          isLoadingHotspots = List.filled(3, false);
+        });
+        print("⚠️ No hotspots received.");
+      }
+    } catch (e) {
+      setState(() {
+        hasHotspotError = true;
+        isLoadingHotspots = List.filled(3, false);
+      });
+      print("❌ Error fetching hotspots: $e");
+    }
+  }
+
 
   Future<void> _loadMarkerImage() async {
     final image = await _loadImage('assets/marker_vessel.png');

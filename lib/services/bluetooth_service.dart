@@ -27,7 +27,6 @@ class BluetoothService {
   late QualifiedCharacteristic chatCharacteristic;
   late QualifiedCharacteristic weatherCharacteristic;
   late QualifiedCharacteristic hotspotChracteristic;
-  StreamSubscription<List<int>>? chatSubscription;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
 
@@ -36,6 +35,29 @@ class BluetoothService {
   DiscoveredDevice? discoveredDevice;
 
   final ValueNotifier<bool> isConnectedNotifier = ValueNotifier<bool>(false);
+
+  // Future<bool> checkConnectionState() async {
+  //   return _isConnected;
+  // }
+
+  // ✅ Monitor connection every 5 seconds and notify listeners
+  // void monitorConnection() {
+  //   int count = 0;
+  //   Timer.periodic(const Duration(seconds: 1), (timer) async {
+  //     count++;
+  //     print("🔄 BLE connection check run #$count");
+
+  //     bool isConnectedNow = await checkConnectionState();
+
+  //     print("Is connected: $isConnected | Is Connected Now: $isConnectedNow");
+
+  //     if (_isConnected != isConnectedNow) {
+  //       _isConnected = isConnectedNow;
+  //       isConnectedNotifier.value = _isConnected; // Notify UI
+  //       print("📢 Notify changed");
+  //     }
+  //   });
+  // }
 
   void monitorConnection() {
     _ble.statusStream.listen((status) {
@@ -72,6 +94,20 @@ class BluetoothService {
       throw Exception(
           "❌ Location permission denied. BLE requires location access.");
     }
+    // if (statuses[Permission.locationAlways]?.isDenied ?? true) {
+    //   throw Exception(
+    //       "❌ Background location permission denied. App cannot send GPS data in background.");
+    // }
+
+    // if (statuses[Permission.ignoreBatteryOptimizations]?.isDenied ?? true) {
+    //   final intent = AndroidIntent(
+    //     action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+    //     data: 'package:com.example.aqua_safe',
+    //     flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    //   );
+    //   await intent.launch();
+    //   throw Exception("❌ Ignore Battery Optimizations denied.");
+    // }
   }
 
   Future<bool> scanAndConnect() async {
@@ -214,6 +250,7 @@ class BluetoothService {
   Future<String> fetchSOSAlerts() async {
     final sosCharacteristic = BluetoothDeviceManager().sosCharacteristic;
     try {
+      // Check if the SOS characteristic is initialized
       if (sosCharacteristic != null) {
         final characteristicValue =
             await _ble.readCharacteristic(sosCharacteristic);
@@ -232,6 +269,12 @@ class BluetoothService {
   Future<void> sendSOSAlert(String sosData, Function onUpdate) async {
     final sosCharacteristic = BluetoothDeviceManager().sosCharacteristic;
     try {
+      // Ensure the device is connected and the characteristic is initialized
+      // if (!_isConnected) {
+      //   throw Exception("Bluetooth is not connected.");
+      // }
+
+      // Send SOS alert if the characteristic is initialized
       if (sosCharacteristic != null) {
         await _ble.writeCharacteristicWithoutResponse(
           sosCharacteristic,
@@ -253,6 +296,8 @@ class BluetoothService {
         // Save to State Manager
         AppStateManager().setLatestSOS(formattedSOSData);
 
+        // Save to SharedPreferences (for persistence)
+        // await AppStateManager().saveSOSToLocal();
         print("✅ Latest SOS saved in State Manager and SharedPreferences.");
         onUpdate();
       } else {
@@ -284,31 +329,35 @@ class BluetoothService {
         value: utf8.encode(message),
       );
 
-      print("✅ Chat message sent via BLE successfully. :$message");
+      print("✅ Chat message sent via BLE successfully.");
     } catch (e) {
       print("❌ Error sending chat message via BLE: $e");
     }
   }
 
   void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
-    // Check if already subscribed
-    if (chatSubscription != null) {
-      print("🔔 Already subscribed to chat notifications.");
-      return; // Don't subscribe again
+    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
+
+    if (chatCharacteristic == null) {
+      print("❌ Chat characteristic is not initialized.");
+      return;
     }
 
-    print("🔔 Subscribing to chat notifications...");
-    chatSubscription =
-        _ble.subscribeToCharacteristic(chatCharacteristic).listen(
+    _ble.subscribeToCharacteristic(chatCharacteristic).listen(
       (data) {
-        print("--- inside subscribeToCharacteristic");
         if (data.isNotEmpty) {
-          String receivedMessage = utf8.decode(data);
-          print("📥 Received Chat Message: $receivedMessage");
+          String receivedData = utf8.decode(data);
+          print("📲 Chat Message Received via BLE: $receivedData");
 
           try {
-            Map<String, dynamic> messageJson = jsonDecode(receivedMessage);
-            onMessageReceived(messageJson);
+            Map<String, dynamic> receivedJson = jsonDecode(receivedData);
+
+            if (receivedJson.containsKey("id") &&
+                receivedJson.containsKey("m")) {
+              onMessageReceived(receivedJson);
+            } else {
+              print("❌ Invalid chat message format: $receivedData");
+            }
           } catch (e) {
             print("❌ Error decoding received chat message: $e");
           }
@@ -318,12 +367,6 @@ class BluetoothService {
         print("❌ Error receiving chat messages via BLE: $e");
       },
     );
-  }
-
-  void stopListeningForChatMessages() {
-    chatSubscription?.cancel();
-    chatSubscription = null; // Reset subscription to prevent re-subscribing
-    print("🔕 Stopped listening for chat notifications.");
   }
 
   Future<void> sendWeatherRequest(String weatherRequest) async {
@@ -422,6 +465,25 @@ class BluetoothService {
       return [];
     }
   }
+
+  Future<void> sendHotspotRequest(String hotspotRequest) async {
+  final hotspotCharacteristic =
+      BluetoothDeviceManager().hotspotChracteristic;
+
+  try {
+    if (hotspotCharacteristic != null) {
+      await _ble.writeCharacteristicWithResponse(
+        hotspotCharacteristic,
+        value: utf8.encode(hotspotRequest),
+      );
+      print("📡✅ Hotspot request sent via Bluetooth: $hotspotRequest");
+    } else {
+      throw Exception("Hotspot characteristic not initialized.");
+    }
+  } catch (e) {
+    print("❌ Error sending hotspot request: $e");
+  }
+}
 
   void dispose() {
     connectionSubscription?.cancel();

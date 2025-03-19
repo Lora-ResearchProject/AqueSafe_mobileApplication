@@ -5,9 +5,22 @@ class FishingHotspotService {
   final BluetoothService _bluetoothService = BluetoothService();
 
   // Fetch suggested fishing hotspots
-  Future<List<Map<String, dynamic>>> fetchSuggestedFishingHotspots() async {
+  Future<List<Map<String, dynamic>>> fetchSuggestedFishingHotspots(double latitude, double longitude) async {
     try {
       print("📡 Requesting hotspot data via BLE...");
+
+        String hotspotRequest = jsonEncode({
+        "latitude": latitude,
+        "longitude": longitude
+      });
+
+      print("📡 Sending Hotspot Request via BLE: $hotspotRequest");
+
+      // Send hotspot request to the BLE device
+      await _bluetoothService.sendHotspotRequest(hotspotRequest);
+
+      // Wait for the ESP32 to respond
+      await Future.delayed(Duration(seconds: 5));
 
       List<Map<String, dynamic>> hotspotList =
           await _bluetoothService.listenForHotspotUpdates();

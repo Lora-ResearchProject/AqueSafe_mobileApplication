@@ -49,11 +49,18 @@ class _WeatherScreenState extends State<WeatherScreen> {
       hotspots = []; // Ensure it's cleared initially
     });
 
+    double latitude;
+    double longitude;
+
     try {
       print("📡 Requesting hotspot data via BLE...");
 
+      Position position = await locationService.getCurrentPosition();
+      latitude = position.latitude;
+      longitude = position.longitude;
+
       List<Map<String, dynamic>> fetchedHotspots =
-          await fishingHotspotService.fetchSuggestedFishingHotspots();
+          await fishingHotspotService.fetchSuggestedFishingHotspots(latitude, longitude);
 
       if (fetchedHotspots.isNotEmpty) {
         setState(() {
