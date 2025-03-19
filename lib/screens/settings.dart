@@ -101,12 +101,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
-            _buildSettingsOption(
-              context,
-              icon: Icons.notifications,
-              title: "Notifications",
-              onTap: () {},
-            ),
+            // _buildSettingsOption(
+            //   context,
+            //   icon: Icons.notifications,
+            //   title: "Notifications",
+            //   onTap: () {},
+            // ),
             _buildSettingsOption(
               context,
               icon: Icons.lock,
@@ -120,12 +120,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               },
             ),
-            _buildSettingsOption(
-              context,
-              icon: Icons.history,
-              title: "Route History",
-              onTap: () {},
-            ),
+            // _buildSettingsOption(
+            //   context,
+            //   icon: Icons.history,
+            //   title: "Route History",
+            //   onTap: () {},
+            // ),
             _buildSettingsOption(
               context,
               icon: Icons.help,

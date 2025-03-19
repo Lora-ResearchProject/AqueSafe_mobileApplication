@@ -291,10 +291,10 @@ class BluetoothService {
   }
 
   void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
-    // Check if already subscribed
+    // Always cancel the previous subscription if it exists
     if (chatSubscription != null) {
-      print("🔔 Already subscribed to chat notifications.");
-      return; // Don't subscribe again
+      print("🔕 Cancelling existing subscription.");
+      chatSubscription?.cancel(); // Cancel the previous subscription
     }
 
     print("🔔 Subscribing to chat notifications...");

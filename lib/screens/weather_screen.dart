@@ -264,16 +264,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   const SizedBox(height: 30),
 
                   // Forecast Timeline
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _forecastCard("6 AM", Icons.cloudy_snowing),
-                      _forecastCard("12 PM", Icons.cloud, isActive: true),
-                      _forecastCard("6 PM", Icons.wb_sunny),
-                      _forecastCard("12 AM", Icons.nights_stay),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
+                  // Row(
+                  //   mainAxisAlignment: MainAxisAlignment.center,
+                  //   children: [
+                  //     _forecastCard("6 AM", Icons.cloudy_snowing),
+                  //     _forecastCard("12 PM", Icons.cloud, isActive: true),
+                  //     _forecastCard("6 PM", Icons.wb_sunny),
+                  //     _forecastCard("12 AM", Icons.nights_stay),
+                  //   ],
+                  // ),
+                  // const SizedBox(height: 30),
 
                   // Refresh Button
                   ElevatedButton.icon(
