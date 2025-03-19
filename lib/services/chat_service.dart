@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:aqua_safe/services/bluetooth_service.dart';
 import 'package:aqua_safe/services/generate_unique_id_service.dart';
@@ -7,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ChatService {
   final BluetoothService _bluetoothService = BluetoothService();
   final ChatMessageScheduler _msgScheduler = ChatMessageScheduler();
+  StreamSubscription? _chatSubscription; // Track the subscription
 
   Future<void> sendChatMessage(int messageNumber) async {
     try {
@@ -130,5 +132,14 @@ class ChatService {
     messages.sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
 
     return messages;
+  }
+
+   // Stop listening for BLE chat messages (Unsubscribe from the BLE stream)
+  void stopListeningForChatMessages() {
+    if (_chatSubscription != null) {
+      _chatSubscription?.cancel(); // Cancel the current subscription
+      _chatSubscription = null; // Clear the subscription
+      print("🔕 Stopped listening for chat messages.");
+    }
   }
 }

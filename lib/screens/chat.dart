@@ -131,6 +131,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void dispose() {
+    super.dispose();
+    // Stop listening for BLE chat messages when the screen is disposed
+    _chatService.stopListeningForChatMessages();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF151d67),

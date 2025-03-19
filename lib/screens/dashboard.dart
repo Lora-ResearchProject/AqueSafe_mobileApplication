@@ -388,7 +388,7 @@ class _DashboardState extends State<Dashboard> {
             children: [
               Icon(
                 icon,
-                size: 40,
+                size: 44,
                 color: Colors.white,
               ),
               const SizedBox(height: 8),
@@ -396,7 +396,7 @@ class _DashboardState extends State<Dashboard> {
                 label,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
