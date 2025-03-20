@@ -31,6 +31,7 @@ class BluetoothService {
   late QualifiedCharacteristic linkingCharacteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
+  StreamSubscription<List<int>>? chatSubscription;
 
   bool _isConnected = false;
   bool get isConnected => _isConnected;
@@ -231,7 +232,8 @@ class BluetoothService {
         linkingCharacteristic, // <- included!
       );
 
-      print("✅ Linking Characteristic initialized: ${linkingCharacteristic.characteristicId}");
+      print(
+          "✅ Linking Characteristic initialized: ${linkingCharacteristic.characteristicId}");
 
       print("Device connected and characteristics initialized.");
     } catch (e) {
@@ -348,12 +350,10 @@ class BluetoothService {
   }
 
   void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
-
     // Always cancel the previous subscription if it exists
     if (chatSubscription != null) {
       print("🔕 Cancelling existing subscription.");
       chatSubscription?.cancel(); // Cancel the previous subscription
-
     }
 
     _ble.subscribeToCharacteristic(chatCharacteristic).listen(
@@ -506,23 +506,23 @@ class BluetoothService {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? vesselId = prefs.getString('vesselId');
-       print(2);
+      print(2);
 
       if (vesselId == null) {
         throw Exception("Vessel ID not found in SharedPreferences.");
       }
 
- print(3);
+      print(3);
       // ✅ Create JSON object
       final Map<String, dynamic> linkingDataMap = {
         "vessel_id": vesselId,
         "hotspot_id": int.parse(hotspotId),
       };
-   print(4);
+      print(4);
       final String linkingDataJson = jsonEncode(linkingDataMap);
 
       if (linkingCharacteristic != null) {
-         print(5);
+        print(5);
         await _ble.writeCharacteristicWithResponse(
           linkingCharacteristic,
           value: utf8.encode(linkingDataJson),
