@@ -348,11 +348,12 @@ class BluetoothService {
   }
 
   void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
-    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
 
-    if (chatCharacteristic == null) {
-      print("❌ Chat characteristic is not initialized.");
-      return;
+    // Always cancel the previous subscription if it exists
+    if (chatSubscription != null) {
+      print("🔕 Cancelling existing subscription.");
+      chatSubscription?.cancel(); // Cancel the previous subscription
+
     }
 
     _ble.subscribeToCharacteristic(chatCharacteristic).listen(

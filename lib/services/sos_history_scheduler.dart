@@ -83,6 +83,9 @@ class SOSHistoryScheduler {
           List<dynamic> alerts = responseData['alerts'];
           print("📥 Received SOS Alerts");
 
+          final String lastUpdatedTimestamp = DateTime.now().toString();
+          await prefs.setString('lastSOSUpdateTime', lastUpdatedTimestamp);
+
           await prefs.setString('cachedSOSHistory', jsonEncode(alerts));
           print("✅ SOS history cached successfully.");
         } else {

@@ -14,15 +14,12 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
-
+  final ChatMessageScheduler _chatMessageScheduler = ChatMessageScheduler();
   List<Map<String, dynamic>> messages = [];
-  List<Map<String, dynamic>> allMessages = []; // Store all messages
-  List<String> sentMessages = []; // Store sent messages
-  List<String> receivedMessages = []; // Store received messages
   String selectedMessage = "";
   String selectedMessageNumber = "";
-  bool isFirstMessageSent = false;
   List<int> selectedNumbers = [];
+  bool isFirstMessageSent = false;
 
   @override
   void initState() {
@@ -30,53 +27,43 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMessages();
 
     // Start listening for BLE chat messages
-    _chatService.startListeningForMessages((message) {
-      setState(() {
-        allMessages.add({
-          'message': "[${message['m']}] - Received",
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-          'type': 'received'
+    _chatService.startListeningForMessages((message) async {
+      if (mounted) {
+        // Retrieve the message content using message number
+        List<Map<String, dynamic>> cachedMessages =
+            await _chatMessageScheduler.getCachedChatMessages();
+        Map<String, dynamic>? msgEntry = cachedMessages.firstWhere(
+          (msg) => msg['messageNumber'] == message['m'],
+          orElse: () => {},
+        );
+
+        String messageContent =
+            msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
+
+        String formattedMsg = "[${message['m']}] - $messageContent";
+        setState(() {
+          messages.add({
+            'message': formattedMsg,
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+            'type': 'received',
+          });
+          messages.sort((a, b) =>
+              a['timestamp'].compareTo(b['timestamp'])); // Sort by timestamp
         });
-        allMessages.sort((a, b) =>
-            a['timestamp'].compareTo(b['timestamp'])); // Sort by timestamp
-        print(
-            "-------- Received chat message added to receivedMsg list successfully ----------");
-      });
+      }
     });
   }
 
   // Load messages from SharedPreferences
   Future<void> _loadMessages() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
-    for (String chatData in chatHistory) {
-      Map<String, dynamic> chatEntry = jsonDecode(chatData);
-      String msgId = chatEntry["id"];
-      String message = chatEntry["msg"];
-      int timestamp = GenerateUniqueIdService().getTimestampFromId(msgId);
-
-      if (msgId.startsWith("S-")) {
-        sentMessages.add(message);
-        allMessages
-            .add({'message': message, 'timestamp': timestamp, 'type': 'sent'});
-      } else if (msgId.startsWith("R-")) {
-        receivedMessages.add(message);
-        allMessages.add(
-            {'message': message, 'timestamp': timestamp, 'type': 'received'});
+    List<Map<String, dynamic>> chatHistory =
+        await _chatService.getChatHistory();
+    setState(() {
+      messages = chatHistory;
+      if (messages.isNotEmpty) {
+        isFirstMessageSent = true;
       }
-    }
-
-    // Sort messages by timestamp
-    allMessages.sort((a, b) => a['timestamp'].compareTo(b['timestamp']));
-
-    setState(() {});
-
-    if (sentMessages.isNotEmpty) {
-      isFirstMessageSent = true;
-    }
-
-    messages = await ChatMessageScheduler().getCachedChatMessages();
+    });
   }
 
   // Send message
@@ -92,35 +79,33 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    GenerateUniqueIdService idService = GenerateUniqueIdService();
-    String messageId = idService.generateId();
-    String prefixedMessageId = "S-$messageId"; // Sent message ID
-
     await _chatService.sendChatMessage(messageNumber);
+
+    // Get the message content from the predefined messages list
+    List<Map<String, dynamic>> cachedMessages =
+        await _chatMessageScheduler.getCachedChatMessages();
+    Map<String, dynamic>? msgEntry = cachedMessages.firstWhere(
+      (msg) => msg['messageNumber'] == messageNumber,
+      orElse: () => {},
+    );
+
+    String messageContent =
+        msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
+
+    String formattedMsg = "[$messageNumber] - $messageContent";
 
     setState(() {
       isFirstMessageSent = true;
-      selectedNumbers.clear();
       selectedMessageNumber = "";
+      selectedMessage = "";
 
-      // Add the sent message to the sentMessages list
-      final sentMsg = messages.firstWhere(
-        (msg) => msg['messageNumber'] == messageNumber,
-        orElse: () => {},
-      );
-
-      if (sentMsg.isNotEmpty) {
-        String formattedMsg = "[$messageNumber] - ${sentMsg['message']}";
-        sentMessages.add(formattedMsg);
-
-        allMessages.add({
-          'message': formattedMsg,
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-          'type': 'sent'
-        });
-
-        _chatService.storeMessageLocally(prefixedMessageId, formattedMsg);
-      }
+      messages.add({
+        'message': formattedMsg,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'type': 'sent',
+      });
+      messages.sort((a, b) =>
+          a['timestamp'].compareTo(b['timestamp'])); // Sort by timestamp
     });
   }
 
@@ -143,6 +128,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _enableMultiDigitSelection() {
     // No change in UI, just allows another number selection
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    // Stop listening for BLE chat messages when the screen is disposed
+    _chatService.stopListeningForChatMessages();
   }
 
   @override
@@ -181,25 +173,24 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // Left-align everything
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isFirstMessageSent) // Hide this text after first message
+          // Show predefined messages if no first message is sent
+          if (!isFirstMessageSent)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 "Select the message code to send",
                 style: const TextStyle(color: Colors.white, fontSize: 16),
-                textAlign: TextAlign.left, // Left-aligned
               ),
             ),
 
-          // Display Received & Sent Messages if they exist
+          // Display received & sent messages
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                for (var msg in allMessages)
+                for (var msg in messages)
                   Align(
                     alignment: msg['type'] == 'received'
                         ? Alignment.centerLeft
@@ -223,40 +214,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Display predefined messages if no first message is sent
+          // Display predefined messages if chat history is empty
           if (!isFirstMessageSent)
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 12, 18, 67),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Scrollbar(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start, // Left-align text
-                      children: messages.map((msg) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Text(
-                            "[${msg['messageNumber']}] - ${msg['message']}",
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 20),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButton<String>(
@@ -271,16 +230,30 @@ class _ChatScreenState extends State<ChatScreen> {
                 onChanged: (value) {
                   setState(() {
                     selectedMessage = value ?? "";
-                    isFirstMessageSent = false;
                   });
                 },
-                items: messages.map((msg) {
-                  return DropdownMenuItem<String>(
-                    value: "[${msg['messageNumber']}] - ${msg['message']}",
-                    child:
-                        Text("[${msg['messageNumber']}] - ${msg['message']}"),
-                  );
-                }).toList(),
+                items: const [
+                  DropdownMenuItem<String>(
+                    value: "[1] - On route to location",
+                    child: Text("[1] - On route to location"),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: "[2] - Need assistance immediately",
+                    child: Text("[2] - Need assistance immediately"),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: "[3] - Location confirmed",
+                    child: Text("[3] - Location confirmed"),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: "[4] - Need assistance immediately",
+                    child: Text("[4] - Need assistance immediately"),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: "[5] - Emergency! Respond ASAP",
+                    child: Text("[5] - Emergency! Respond ASAP"),
+                  ),
+                ],
               ),
             ),
 
