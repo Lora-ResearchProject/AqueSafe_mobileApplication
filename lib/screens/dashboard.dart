@@ -147,7 +147,7 @@ class _DashboardState extends State<Dashboard> {
                       ),
                       _buildConnectionStatus(
                         label: 'LoRa',
-                        isConnected: false,
+                        isConnected: true,
                       ),
                     ],
                   ),
