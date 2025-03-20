@@ -14,6 +14,8 @@ class Constants {
       "abcd1234-5678-1234-5678-abcdef111213";
   static const String hotspotChracteristicUuid =
       "abcd1234-5678-1234-5678-abcdef111214";
+  static const String linkingCharacteristicUuid =
+      "abcd1234-5678-1234-5678-abcdef111215";
 
   static const String vesselId = "123"; // Example vessel ID
 }
