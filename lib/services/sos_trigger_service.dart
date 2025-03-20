@@ -1,4 +1,5 @@
 import 'package:aqua_safe/services/generate_unique_id_service.dart';
+import 'package:aqua_safe/utils/snack_bar.dart';
 import 'package:flutter/material.dart';
 import 'bluetooth_service.dart';
 import '../utils/bluetooth_device_manager.dart';
@@ -47,33 +48,13 @@ class SOSTriggerService {
         "s": 1
       });
 
-      // Send SOS and update UI immediately
       await bluetoothService.sendSOSAlert(sosData, onUpdate);
 
-      // Show success dialog
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("SOS Sent"),
-          content: const Text("SOS alert sent successfully."),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(dialogContext).pop();
-
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => Dashboard()),
-                );
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
+      SnackbarUtils.showSuccessMessage(context, "SOS alert sent successfully.");
     } catch (e) {
       print("Error handling SOS confirmation: $e");
+      SnackbarUtils.showErrorMessage(
+          context, "Error occured while sending sos.");
     }
   }
 }

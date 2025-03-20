@@ -1,5 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../cards/sos_alert_card.dart';
 import '../services/sos_history_scheduler.dart';
 
@@ -11,11 +12,33 @@ class SOSAlertScreen extends StatefulWidget {
 class _SOSAlertScreenState extends State<SOSAlertScreen> {
   List<Map<String, dynamic>> sosAlerts = [];
   final SOSHistoryScheduler _sosScheduler = SOSHistoryScheduler();
+  String lastUpdatedTime = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _fetchCachedSOSHistory();
+    _fetchLastUpdatedTime();
+  }
+
+  Future<void> _fetchLastUpdatedTime() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? timestamp = prefs.getString('lastSOSUpdateTime');
+
+    if (timestamp != null) {
+      DateTime lastUpdated = DateTime.parse(timestamp);
+
+      String formattedDate =
+          DateFormat('yyyy-MM-dd at h:mm a').format(lastUpdated);
+
+      setState(() {
+        lastUpdatedTime = 'Last updated on $formattedDate';
+      });
+    } else {
+      setState(() {
+        lastUpdatedTime = 'No data available';
+      });
+    }
   }
 
   Future<void> _fetchCachedSOSHistory() async {
@@ -65,6 +88,14 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
                   color: Color(0xFF151d67),
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Last updated time display
+            Text(
+              lastUpdatedTime,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.left,
             ),
             const SizedBox(height: 16),
 

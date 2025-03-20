@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../utils/constants.dart';
 import '../utils/bluetooth_device_manager.dart';
 import '../utils/appStateManager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:android_intent_plus/android_intent.dart';
 // import 'package:android_intent_plus/flag.dart';
 
@@ -27,8 +28,10 @@ class BluetoothService {
   late QualifiedCharacteristic chatCharacteristic;
   late QualifiedCharacteristic weatherCharacteristic;
   late QualifiedCharacteristic hotspotChracteristic;
+  late QualifiedCharacteristic linkingCharacteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
+  StreamSubscription<List<int>>? chatSubscription;
 
   bool _isConnected = false;
   bool get isConnected => _isConnected;
@@ -214,12 +217,23 @@ class BluetoothService {
         deviceId: device.id,
       );
 
+      linkingCharacteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.linkingCharacteristicUuid),
+        serviceId: Uuid.parse(Constants.serviceUuid),
+        deviceId: device.id,
+      );
+
       BluetoothDeviceManager().setCharacteristics(
-          sosCharacteristic,
-          gpsCharacteristic,
-          chatCharacteristic,
-          weatherCharacteristic,
-          hotspotChracteristic);
+        sosCharacteristic,
+        gpsCharacteristic,
+        chatCharacteristic,
+        weatherCharacteristic,
+        hotspotChracteristic,
+        linkingCharacteristic, // <- included!
+      );
+
+      print(
+          "✅ Linking Characteristic initialized: ${linkingCharacteristic.characteristicId}");
 
       print("Device connected and characteristics initialized.");
     } catch (e) {
@@ -336,11 +350,10 @@ class BluetoothService {
   }
 
   void listenForChatMessages(Function(Map<String, dynamic>) onMessageReceived) {
-    final chatCharacteristic = BluetoothDeviceManager().chatCharacteristic;
-
-    if (chatCharacteristic == null) {
-      print("❌ Chat characteristic is not initialized.");
-      return;
+    // Always cancel the previous subscription if it exists
+    if (chatSubscription != null) {
+      print("🔕 Cancelling existing subscription.");
+      chatSubscription?.cancel(); // Cancel the previous subscription
     }
 
     _ble.subscribeToCharacteristic(chatCharacteristic).listen(
@@ -463,6 +476,63 @@ class BluetoothService {
     } catch (e) {
       print("❌ Error receiving hotspot data: $e");
       return [];
+    }
+  }
+
+  Future<void> sendHotspotRequest(String hotspotRequest) async {
+    final hotspotCharacteristic = BluetoothDeviceManager().hotspotChracteristic;
+
+    try {
+      if (hotspotCharacteristic != null) {
+        await _ble.writeCharacteristicWithResponse(
+          hotspotCharacteristic,
+          value: utf8.encode(hotspotRequest),
+        );
+        print("📡✅ Hotspot request sent via Bluetooth: $hotspotRequest");
+      } else {
+        throw Exception("Hotspot characteristic not initialized.");
+      }
+    } catch (e) {
+      print("❌ Error sending hotspot request: $e");
+    }
+  }
+
+  Future<void> sendLinkingData(String hotspotId) async {
+    final linkingCharacteristic =
+        BluetoothDeviceManager().linkingCharacteristic;
+
+    print(1);
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? vesselId = prefs.getString('vesselId');
+      print(2);
+
+      if (vesselId == null) {
+        throw Exception("Vessel ID not found in SharedPreferences.");
+      }
+
+      print(3);
+      // ✅ Create JSON object
+      final Map<String, dynamic> linkingDataMap = {
+        "vessel_id": vesselId,
+        "hotspot_id": int.parse(hotspotId),
+      };
+      print(4);
+      final String linkingDataJson = jsonEncode(linkingDataMap);
+
+      if (linkingCharacteristic != null) {
+        print(5);
+        await _ble.writeCharacteristicWithResponse(
+          linkingCharacteristic,
+          value: utf8.encode(linkingDataJson),
+        );
+        print("📡✅ Linking data sent via Bluetooth: $linkingDataJson");
+      } else {
+        throw Exception("Linking characteristic not initialized.");
+      }
+    } catch (e) {
+      print("❌ Error sending linking data: $e");
     }
   }
 

@@ -49,11 +49,18 @@ class _WeatherScreenState extends State<WeatherScreen> {
       hotspots = []; // Ensure it's cleared initially
     });
 
+    double latitude;
+    double longitude;
+
     try {
       print("📡 Requesting hotspot data via BLE...");
 
+      Position position = await locationService.getCurrentPosition();
+      latitude = position.latitude;
+      longitude = position.longitude;
+
       List<Map<String, dynamic>> fetchedHotspots =
-          await fishingHotspotService.fetchSuggestedFishingHotspots();
+          await fishingHotspotService.fetchSuggestedFishingHotspots(latitude, longitude);
 
       if (fetchedHotspots.isNotEmpty) {
         setState(() {
@@ -264,16 +271,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   const SizedBox(height: 30),
 
                   // Forecast Timeline
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _forecastCard("6 AM", Icons.cloudy_snowing),
-                      _forecastCard("12 PM", Icons.cloud, isActive: true),
-                      _forecastCard("6 PM", Icons.wb_sunny),
-                      _forecastCard("12 AM", Icons.nights_stay),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
+                  // Row(
+                  //   mainAxisAlignment: MainAxisAlignment.center,
+                  //   children: [
+                  //     _forecastCard("6 AM", Icons.cloudy_snowing),
+                  //     _forecastCard("12 PM", Icons.cloud, isActive: true),
+                  //     _forecastCard("6 PM", Icons.wb_sunny),
+                  //     _forecastCard("12 AM", Icons.nights_stay),
+                  //   ],
+                  // ),
+                  // const SizedBox(height: 30),
 
                   // Refresh Button
                   ElevatedButton.icon(

@@ -31,7 +31,7 @@ class SchedulerService {
         throw Exception("❌ Vessel ID not found in SharedPreferences");
       }
 
-      _gpsTimer = Timer.periodic(const Duration(seconds: 8), (timer) async {
+      _gpsTimer = Timer.periodic(const Duration(seconds: 180), (timer) async {
         try {
           var position = await _locationService.getCurrentPosition();
           String latitude = position.latitude.toStringAsFixed(5);

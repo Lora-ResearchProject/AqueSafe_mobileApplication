@@ -42,8 +42,6 @@ class _DashboardState extends State<Dashboard> {
 
     _loadSOSStatus();
 
-    SOSHistoryScheduler().startScheduler(onSOSUpdate: _loadSOSStatus);
-
     _screens = [
       _buildDashboardContent(),
       const SettingsScreen(),
@@ -90,9 +88,9 @@ class _DashboardState extends State<Dashboard> {
           setState(() {
             _currentIndex = index;
           });
-          if (index == 0) {
-            _loadSOSStatus(); // Reload SOS status when navigating back to Home
-          }
+          // if (index == 0) {
+          //   _loadSOSStatus(); // Reload SOS status when navigating back to Home
+          // }
         },
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
@@ -149,7 +147,7 @@ class _DashboardState extends State<Dashboard> {
                       ),
                       _buildConnectionStatus(
                         label: 'LoRa',
-                        isConnected: false,
+                        isConnected: true,
                       ),
                     ],
                   ),
@@ -267,7 +265,7 @@ class _DashboardState extends State<Dashboard> {
                           child: Padding(
                             padding: EdgeInsets.all(8.0),
                             child: Text(
-                              "No active SOS alerts.",
+                              "No notifications",
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 16,
@@ -320,15 +318,7 @@ class _DashboardState extends State<Dashboard> {
                           icon: Icons.chat,
                           label: 'Chat',
                           color: const Color.fromARGB(255, 174, 116, 23),
-                          onTap: () => {
-                            Navigator.pushNamed(
-                              context,
-                              '/chat',
-                              arguments: {
-                                'vesselId': "undefined",
-                              },
-                            )
-                          },
+                          onTap: () => {Navigator.pushNamed(context, '/chat')},
                         ),
                         _buildQuickLinkCard(
                           icon: Icons.cloud,
@@ -398,7 +388,7 @@ class _DashboardState extends State<Dashboard> {
             children: [
               Icon(
                 icon,
-                size: 40,
+                size: 44,
                 color: Colors.white,
               ),
               const SizedBox(height: 8),
@@ -406,7 +396,7 @@ class _DashboardState extends State<Dashboard> {
                 label,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -463,10 +453,11 @@ class _DashboardState extends State<Dashboard> {
             ),
           ),
           ElevatedButton(
-            onPressed: () => _sosTriggerService.handleConfirm(
-                context, _bluetoothService, ctx,
-                onUpdate:
-                    _loadSOSStatus), // Pass the callback to reload SOS status,
+            onPressed: () {
+              _sosTriggerService.handleConfirm(context, _bluetoothService, ctx,
+                  onUpdate: _loadSOSStatus);
+              Navigator.of(ctx).pop();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 18, 115, 194),
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 36),

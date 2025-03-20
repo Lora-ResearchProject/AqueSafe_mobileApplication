@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -83,6 +82,9 @@ class SOSHistoryScheduler {
         if (responseData['success'] == true) {
           List<dynamic> alerts = responseData['alerts'];
           print("📥 Received SOS Alerts");
+
+          final String lastUpdatedTimestamp = DateTime.now().toString();
+          await prefs.setString('lastSOSUpdateTime', lastUpdatedTimestamp);
 
           await prefs.setString('cachedSOSHistory', jsonEncode(alerts));
           print("✅ SOS history cached successfully.");
