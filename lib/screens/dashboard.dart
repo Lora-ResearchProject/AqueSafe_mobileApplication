@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:aqua_safe/cards/bluetooth_warning_card.dart';
-import 'package:aqua_safe/screens/chat.dart';
 import 'package:aqua_safe/screens/sos_alert_details_screen.dart';
-import 'package:aqua_safe/services/sos_history_scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -35,7 +33,7 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
-    _bluetoothService.monitorConnection();
+    // _bluetoothService.monitorConnection();
     print(AppStateManager().isSOSInProgress);
     print(AppStateManager().sosTimeAgo);
     print(AppStateManager().status);
