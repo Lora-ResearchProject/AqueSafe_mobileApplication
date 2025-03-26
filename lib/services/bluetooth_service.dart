@@ -62,17 +62,17 @@ class BluetoothService {
   //   });
   // }
 
-  void monitorConnection() {
-    _ble.statusStream.listen((status) {
-      bool isConnectedNow = (status == BleStatus.ready) && _isConnected;
+  // void monitorConnection() {
+  //   _ble.statusStream.listen((status) {
+  //     bool isConnectedNow = (status == BleStatus.ready) && _isConnected;
 
-      if (_isConnected != isConnectedNow) {
-        _isConnected = isConnectedNow;
-        isConnectedNotifier.value = _isConnected;
-        print("📢 BLE Connection Status Changed: $_isConnected");
-      }
-    });
-  }
+  //     if (_isConnected != isConnectedNow) {
+  //       _isConnected = isConnectedNow;
+  //       isConnectedNotifier.value = _isConnected;
+  //       print("📢 BLE Connection Status Changed: $_isConnected");
+  //     }
+  //   });
+  // }
 
   Future<void> requestPermissions() async {
     Map<Permission, PermissionStatus> statuses = await [
@@ -97,20 +97,6 @@ class BluetoothService {
       throw Exception(
           "❌ Location permission denied. BLE requires location access.");
     }
-    // if (statuses[Permission.locationAlways]?.isDenied ?? true) {
-    //   throw Exception(
-    //       "❌ Background location permission denied. App cannot send GPS data in background.");
-    // }
-
-    // if (statuses[Permission.ignoreBatteryOptimizations]?.isDenied ?? true) {
-    //   final intent = AndroidIntent(
-    //     action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-    //     data: 'package:com.example.aqua_safe',
-    //     flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
-    //   );
-    //   await intent.launch();
-    //   throw Exception("❌ Ignore Battery Optimizations denied.");
-    // }
   }
 
   Future<bool> scanAndConnect() async {
@@ -162,12 +148,12 @@ class BluetoothService {
           _ble.connectToDevice(id: device.id).listen((event) async {
         if (event.connectionState == DeviceConnectionState.connected) {
           _isConnected = true;
+          isConnectedNotifier.value = true; // ✅ Update notifier
           print("=== Device connected.");
           initializeCharacteristics(device);
 
           await SchedulerService().startScheduler();
 
-          // ✅ Request higher MTU (maximum 512 bytes, but actual depends on ESP32)
           int requestedMTU = 250;
           int mtu =
               await _ble.requestMtu(deviceId: device.id, mtu: requestedMTU);
@@ -175,12 +161,14 @@ class BluetoothService {
         } else if (event.connectionState ==
             DeviceConnectionState.disconnected) {
           _isConnected = false;
+          isConnectedNotifier.value = false; // ✅ Update notifier
           print("=== Device disconnected. Retrying...");
           SchedulerService().stopScheduler();
         }
       });
     } catch (e) {
       print(">>> Error connecting to device: $e");
+      isConnectedNotifier.value = false; // ✅ Mark as disconnected on error
       rethrow;
     }
   }
