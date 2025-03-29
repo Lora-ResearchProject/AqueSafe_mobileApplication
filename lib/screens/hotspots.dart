@@ -52,41 +52,93 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
 
   void _showNavigateDialog(Map<String, dynamic> hotspot) {
     debugPrint("Hotspots: $hotspots");
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Navigate?"),
-          content: Text(
-              "Do you want to navigate to this hotspot at ${hotspot['latitude']?.toStringAsFixed(4)}, ${hotspot['longitude']?.toStringAsFixed(4)}?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text("Cancel"),
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF151d67),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Center(
+          child: Text(
+            "Navigate?",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-            ElevatedButton(
-              onPressed: () async {
-                setState(() {
-                  selectedHotspot = {
-                    'lat': hotspot['latitude'],
-                    'lng': hotspot['longitude']
-                  };
-                  destinations.clear();
-                  destinations.add(selectedHotspot!);
-                });
+          ),
+        ),
+        content: Text(
+          "Do you want to navigate to this hotspot\nat ${hotspot['latitude']?.toStringAsFixed(4)}, ${hotspot['longitude']?.toStringAsFixed(4)}?",
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 18,
+            color: Color.fromARGB(179, 229, 229, 229),
+          ),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        actionsPadding: const EdgeInsets.only(bottom: 20),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
+                  side: const BorderSide(color: Color(0xFF151d67), width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(color: Color(0xFF151d67), fontSize: 18),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() {
+                    selectedHotspot = {
+                      'lat': hotspot['latitude'],
+                      'lng': hotspot['longitude']
+                    };
+                    destinations.clear();
+                    destinations.add(selectedHotspot!);
+                  });
 
-                if (hotspot.containsKey('hotspotId')) {
-                  await BluetoothService()
-                      .sendLinkingData(hotspot['hotspotId'].toString());
-                }
+                  if (hotspot.containsKey('hotspotId')) {
+                    await BluetoothService()
+                        .sendLinkingData(hotspot['hotspotId'].toString());
+                  }
 
-                Navigator.of(context).pop();
-              },
-              child: Text("Navigate"),
-            ),
-          ],
-        );
-      },
+                  Navigator.of(ctx).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 18, 115, 194),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  "Navigate",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
