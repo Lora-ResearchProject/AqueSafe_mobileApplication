@@ -175,10 +175,13 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
       final double destY =
           centerY + (-latDiff / 180) * screenSize.height * _zoom;
 
-      const double markerTouchRadius = 30.0; // adjust as needed
+      const double markerHeight = 30.0; // Same as used in CustomPainter
+      const double markerTouchRadius = 30.0;
+
+      final Offset markerCenter = Offset(destX, destY - markerHeight / 2);
 
       // Check if tap is near marker
-      if ((tapPosition - Offset(destX, destY)).distance < markerTouchRadius) {
+      if ((tapPosition - markerCenter).distance < markerTouchRadius) {
         _showNavigateDialog(hotspot);
         break;
       }
@@ -512,6 +515,13 @@ class MapPainter extends CustomPainter {
         Rect.fromLTWH(destX - markerWidth / 2, destY - markerHeight,
             markerWidth, markerHeight),
         Paint(),
+      );
+
+      // Debug: Show clickable zone
+      canvas.drawCircle(
+        Offset(destX, destY - markerHeight / 2),
+        30.0, // Same as markerTouchRadius
+        Paint()..color = Colors.blue.withOpacity(0.2),
       );
 
       // 🔹 Draw distance label
