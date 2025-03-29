@@ -28,6 +28,12 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   ui.Image? markerImage;
   double arrowRotation = 0.0;
   late Timer _locationUpdateTimer;
+  double _zoom = 500.0;
+  Offset _panOffset = Offset.zero;
+
+  double _previousScale = 500.0;
+  Offset _previousOffset = Offset.zero;
+  Offset _scaleFocalPoint = Offset.zero;
 
   @override
   void initState() {
@@ -104,11 +110,9 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     final double centerX = screenSize.width / 2;
     final double centerY = screenSize.height / 2;
 
-    double zoom = 500.0;
-
     // These scaling factors need to match what you're using in the painter:
-    final double scalePerLng = (screenSize.width * zoom) / 360;
-    final double scalePerLat = (screenSize.height * zoom) / 180;
+    final double scalePerLng = (screenSize.width * _zoom) / 360;
+    final double scalePerLat = (screenSize.height * _zoom) / 180;
 
     final double lngDiff = (tapPosition.dx - centerX) / scalePerLng;
     final double latDiff =
@@ -243,32 +247,153 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     });
   }
 
+  Widget _buildZoomButton(
+      {required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 75,
+        height: 75,
+        decoration: BoxDecoration(
+          color: const Color(0xFF151d67),
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 32,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecenterButton({required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: const Color(0xFF151d67),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.my_location,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: const Color(0xFF151d67),
+        elevation: 0,
         title: const Text(
-          'Fishing Spots',
-          style: TextStyle(color: Colors.black),
+          "Fishing Spots",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white70,
+          ),
         ),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black),
-        elevation: 1,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: userLocation == null
           ? const Center(child: CircularProgressIndicator())
-          : GestureDetector(
-              onTapUp: (details) => _handleMapTap(details.localPosition),
-              child: CustomPaint(
-                size: MediaQuery.of(context).size,
-                painter: MapPainter(
-                  userLocation: userLocation,
-                  destinations: destinations,
-                  markerImage: markerImage,
-                  arrowRotation: arrowRotation,
-                  zoom: 500.0,
+          : Stack(
+              children: [
+                GestureDetector(
+                  onScaleStart: (details) {
+                    _previousScale = _zoom;
+                    _previousOffset = _panOffset;
+                    _scaleFocalPoint = details.focalPoint;
+                  },
+                  onScaleUpdate: (details) {
+                    setState(() {
+                      _zoom =
+                          (_previousScale * details.scale).clamp(100.0, 2000.0);
+                      final Offset delta =
+                          details.focalPoint - _scaleFocalPoint;
+                      _panOffset = _previousOffset + delta;
+                    });
+                  },
+                  child: CustomPaint(
+                    size: MediaQuery.of(context).size,
+                    painter: MapPainter(
+                      userLocation: userLocation,
+                      destinations: destinations,
+                      markerImage: markerImage,
+                      arrowRotation: arrowRotation,
+                      zoom: _zoom,
+                      panOffset: _panOffset,
+                    ),
+                  ),
                 ),
-              ),
+
+                // Zoom Controls
+                Positioned(
+                  right: 16,
+                  bottom: MediaQuery.of(context).padding.bottom + 40,
+                  child: Column(
+                    children: [
+                      _buildZoomButton(
+                        icon: Icons.add,
+                        onTap: () {
+                          setState(() {
+                            _zoom = (_zoom * 1.2).clamp(100.0, 2000.0);
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildZoomButton(
+                        icon: Icons.remove,
+                        onTap: () {
+                          setState(() {
+                            _zoom = (_zoom / 1.2).clamp(100.0, 2000.0);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Recenter Button
+                Positioned(
+                  left: 16,
+                  bottom: MediaQuery.of(context).padding.bottom + 40,
+                  child: _buildRecenterButton(
+                    onTap: () {
+                      setState(() {
+                        _panOffset = Offset.zero;
+                        _zoom = 500.0;
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
     );
   }
@@ -280,6 +405,7 @@ class MapPainter extends CustomPainter {
   final ui.Image? markerImage;
   final double arrowRotation;
   final double zoom;
+  final Offset panOffset; // add this
 
   MapPainter({
     required this.userLocation,
@@ -287,6 +413,7 @@ class MapPainter extends CustomPainter {
     this.markerImage,
     required this.arrowRotation,
     this.zoom = 500.0,
+    this.panOffset = Offset.zero,
   });
 
   @override
@@ -297,8 +424,8 @@ class MapPainter extends CustomPainter {
     canvas.drawRect(
         Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
+    final centerX = size.width / 2 + panOffset.dx;
+    final centerY = size.height / 2 + panOffset.dy;
 
     // Convert lat/lng differences into pixel offsets
     double lngToOffset(double lngDiff) => (lngDiff / 360) * size.width * zoom;
