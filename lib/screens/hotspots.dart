@@ -366,6 +366,23 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+
+        // NEW Save Location button
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bookmark_add, color: Colors.white),
+            tooltip: "Save Fishing Location",
+            onPressed: () async {
+              await fishingHotspotService.saveFishingLocation();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("📍 Fishing location saved via Bluetooth"),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: userLocation == null
           ? const Center(child: CircularProgressIndicator())
@@ -373,7 +390,7 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
               children: [
                 GestureDetector(
                   onTapUp: (details) =>
-                      _handleMapTap(details.localPosition), // ✅ Add this
+                      _handleMapTap(details.localPosition), 
                   onScaleStart: (details) {
                     _previousScale = _zoom;
                     _previousOffset = _panOffset;

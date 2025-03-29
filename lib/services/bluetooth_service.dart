@@ -29,6 +29,7 @@ class BluetoothService {
   late QualifiedCharacteristic weatherCharacteristic;
   late QualifiedCharacteristic hotspotChracteristic;
   late QualifiedCharacteristic linkingCharacteristic;
+  late QualifiedCharacteristic saveLocationCharacteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
   StreamSubscription<List<int>>? chatSubscription;
@@ -38,41 +39,6 @@ class BluetoothService {
   DiscoveredDevice? discoveredDevice;
 
   final ValueNotifier<bool> isConnectedNotifier = ValueNotifier<bool>(false);
-
-  // Future<bool> checkConnectionState() async {
-  //   return _isConnected;
-  // }
-
-  // ✅ Monitor connection every 5 seconds and notify listeners
-  // void monitorConnection() {
-  //   int count = 0;
-  //   Timer.periodic(const Duration(seconds: 1), (timer) async {
-  //     count++;
-  //     print("🔄 BLE connection check run #$count");
-
-  //     bool isConnectedNow = await checkConnectionState();
-
-  //     print("Is connected: $isConnected | Is Connected Now: $isConnectedNow");
-
-  //     if (_isConnected != isConnectedNow) {
-  //       _isConnected = isConnectedNow;
-  //       isConnectedNotifier.value = _isConnected; // Notify UI
-  //       print("📢 Notify changed");
-  //     }
-  //   });
-  // }
-
-  // void monitorConnection() {
-  //   _ble.statusStream.listen((status) {
-  //     bool isConnectedNow = (status == BleStatus.ready) && _isConnected;
-
-  //     if (_isConnected != isConnectedNow) {
-  //       _isConnected = isConnectedNow;
-  //       isConnectedNotifier.value = _isConnected;
-  //       print("📢 BLE Connection Status Changed: $_isConnected");
-  //     }
-  //   });
-  // }
 
   Future<void> requestPermissions() async {
     Map<Permission, PermissionStatus> statuses = await [
@@ -152,6 +118,14 @@ class BluetoothService {
           print("=== Device connected.");
           initializeCharacteristics(device);
 
+          final services = await _ble.discoverServices(device.id);
+          for (final service in services) {
+            print('🔧 Service: ${service.serviceId}');
+            for (final characteristic in service.characteristics) {
+              print('   📍 Characteristic: ${characteristic.characteristicId}');
+            }
+          }
+
           await SchedulerService().startScheduler();
 
           int requestedMTU = 250;
@@ -211,17 +185,23 @@ class BluetoothService {
         deviceId: device.id,
       );
 
-      BluetoothDeviceManager().setCharacteristics(
-        sosCharacteristic,
-        gpsCharacteristic,
-        chatCharacteristic,
-        weatherCharacteristic,
-        hotspotChracteristic,
-        linkingCharacteristic, // <- included!
+      saveLocationCharacteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.saveLocationCharacteristicUuid),
+        serviceId: Uuid.parse(Constants.serviceUuid),
+        deviceId: device.id,
       );
 
+      BluetoothDeviceManager().setCharacteristics(
+          sosCharacteristic,
+          gpsCharacteristic,
+          chatCharacteristic,
+          weatherCharacteristic,
+          hotspotChracteristic,
+          linkingCharacteristic,
+          saveLocationCharacteristic);
+
       print(
-          "✅ Linking Characteristic initialized: ${linkingCharacteristic.characteristicId}");
+          "✅ Save Fishing Location Characteristic initialized: ${saveLocationCharacteristic.characteristicId}");
 
       print("Device connected and characteristics initialized.");
     } catch (e) {
@@ -521,6 +501,28 @@ class BluetoothService {
       }
     } catch (e) {
       print("❌ Error sending linking data: $e");
+    }
+  }
+
+  Future<void> saveFishingLocation(String saveFishingRequest) async {
+    final saveLocationCharacteristic =
+        BluetoothDeviceManager().saveLocationCharacteristic;
+
+    try {
+      if (saveLocationCharacteristic != null) {
+        print(
+            "saveLocationCharacteristic not null: ${saveLocationCharacteristic.characteristicId}");
+        await _ble.writeCharacteristicWithResponse(
+          saveLocationCharacteristic,
+          value: utf8.encode(saveFishingRequest),
+        );
+        print(
+            "🐬✅ Save Fishing Location request sent via Bluetooth: $saveFishingRequest");
+      } else {
+        throw Exception("saveLocation characteristic not initialized.");
+      }
+    } catch (e) {
+      print("❌ Error sending save fishing location request: $e");
     }
   }
 
