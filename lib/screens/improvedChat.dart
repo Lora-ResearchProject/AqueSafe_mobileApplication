@@ -91,37 +91,47 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
             padding: EdgeInsets.only(left: 16.0, bottom: 10, top: 10),
             child: Text(
               "Select the message code to send",
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: Colors.white, fontSize: 18),
             ),
           ),
-          FutureBuilder(
-            future: _chatMessageScheduler.getCachedChatMessages(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final messages = snapshot.data as List<Map<String, dynamic>>;
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white),
-                  borderRadius: BorderRadius.circular(10),
-                  color: const Color(0xFF10194E),
-                ),
-                height: 130,
-                child: ListView.builder(
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    return Text(
-                      "[${msg['messageNumber']}] - ${msg['message']}",
-                      style: const TextStyle(color: Colors.white),
-                    );
-                  },
-                ),
-              );
-            },
+          // Wrap in a fixed-height container instead of Expanded
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white),
+              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFF10194E),
+            ),
+            height: 250, // Adjust height as needed
+            child: FutureBuilder(
+              future: _chatMessageScheduler.getCachedChatMessages(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final messages = snapshot.data as List<Map<String, dynamic>>;
+                return Scrollbar(
+                  thumbVisibility: true,
+                  child: ListView.builder(
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = messages[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          "[${msg['messageNumber']}] - ${msg['message']}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ),
         ],
       );
