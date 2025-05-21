@@ -44,7 +44,7 @@ class ChatService {
       // Store sent message locally
       await _storeMessageLocally(formattedMsg);
 
-      print("✅ Chat Message Sent & Stored: $formattedMsg");
+      print("✅ Chat Message Sent & Stored locally: $formattedMsg");
     } catch (e) {
       print("❌ Error sending chat message via BLE: $e");
     }
@@ -57,7 +57,7 @@ class ChatService {
 
     chatHistory.add(jsonEncode({"msg": formattedMessage}));
 
-    if (chatHistory.length > 20) {
+    if (chatHistory.length > 10) {
       chatHistory.removeAt(0);
     }
 
@@ -98,10 +98,12 @@ class ChatService {
         String messageContent =
             msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
         String formattedMsg =
-            "R-${receivedId.split('|')[1]}-[$message['m']]-$messageContent";
+            "R-${receivedId.split('|')[1]}-[${message['m']}]-$messageContent";
 
         // Store received message locally
         await _storeMessageLocally(formattedMsg);
+
+        print("✅ Chat Message Received & Stored locally: $formattedMsg");
 
         onMessageReceived(message);
       } else {
@@ -115,16 +117,19 @@ class ChatService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
 
+    //print("--- 📦 Raw chatHistory from prefs: $chatHistory");
+
     List<Map<String, dynamic>> messages = chatHistory.map((chatData) {
       Map<String, dynamic> chatEntry = jsonDecode(chatData);
-      String message = chatEntry["msg"];
-      String messageId = message.split('-')[0].substring(2);
+      String fullMsg = chatEntry["msg"];
+      String message = "${fullMsg.split('-')[2]}-${fullMsg.split('-')[3]}";
+      String messageId = fullMsg.split('-')[1];
       int timestamp = GenerateUniqueIdService().getTimestampFromId(messageId);
 
       return {
         'message': message,
         'timestamp': timestamp,
-        'type': message.startsWith("S-") ? 'sent' : 'received',
+        'type': fullMsg.startsWith("S") ? 'sent' : 'received',
       };
     }).toList();
 
