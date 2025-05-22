@@ -117,7 +117,7 @@ class ChatService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
 
-    //print("--- 📦 Raw chatHistory from prefs: $chatHistory");
+    print("--- 📦 Raw chatHistory from prefs: $chatHistory");
 
     List<Map<String, dynamic>> messages = chatHistory.map((chatData) {
       Map<String, dynamic> chatEntry = jsonDecode(chatData);

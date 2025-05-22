@@ -31,6 +31,7 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
   Future<void> _loadMessages() async {
     List<Map<String, dynamic>> chatHistory =
         await _chatService.getChatHistory();
+    if (!mounted) return;
     setState(() {
       messages = chatHistory;
 
