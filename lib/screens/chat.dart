@@ -1,10 +1,6 @@
-import 'dart:convert';
 import 'package:aqua_safe/services/chat_service.dart';
-import 'package:aqua_safe/services/generate_unique_id_service.dart';
 import 'package:aqua_safe/services/predefined_msg_scheduler.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
 
