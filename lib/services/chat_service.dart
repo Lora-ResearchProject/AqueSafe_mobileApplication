@@ -126,6 +126,8 @@ class ChatService {
       String messageId = fullMsg.split('-')[1];
       int timestamp = GenerateUniqueIdService().getTimestampFromId(messageId);
 
+      // print(">>>>>>> Parsed message with timestamp: $timestamp, message: $message");
+
       return {
         'message': message,
         'timestamp': timestamp,
@@ -139,7 +141,7 @@ class ChatService {
     return messages;
   }
 
-   // Stop listening for BLE chat messages (Unsubscribe from the BLE stream)
+  // Stop listening for BLE chat messages (Unsubscribe from the BLE stream)
   void stopListeningForChatMessages() {
     if (_chatSubscription != null) {
       _chatSubscription?.cancel(); // Cancel the current subscription
