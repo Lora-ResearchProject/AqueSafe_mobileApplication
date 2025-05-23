@@ -32,13 +32,18 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
     List<Map<String, dynamic>> chatHistory =
         await _chatService.getChatHistory();
     if (!mounted) return;
+
+    // for (var msg in chatHistory) {
+    //   print(">>>>>>>>> Loaded Msg: ${msg['message']} - Timestamp: ${msg['timestamp']} - Type: ${msg['type']}");
+    // }
+
     setState(() {
       messages = chatHistory;
 
       // ✅ Automatically hide predefined box if messages now exist
-      if (messages.isNotEmpty) {
-        showPredefinedBox = false;
-      }
+      // if (messages.isNotEmpty) {
+      //   showPredefinedBox = false;
+      // }
     });
   }
 
@@ -72,19 +77,31 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
     return Align(
       alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        margin: EdgeInsets.fromLTRB(
+          isSent ? 30 : 8, // Left padding
+          5, // Top
+          isSent ? 10 : 30, // Right padding
+          5, // Bottom
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isSent ? const Color(0xFFA3E2FF) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Text(text, style: const TextStyle(fontSize: 18)),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 18,
+            color: isSent ? Colors.black : Colors.black87,
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDynamicHeader() {
-    if (messages.isEmpty && showPredefinedBox) {
+    if (showPredefinedBox) {
+      // Always show predefined box if toggled on
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -95,7 +112,6 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
           ),
-          // Wrap in a fixed-height container instead of Expanded
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(12),
@@ -136,7 +152,8 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
           ),
         ],
       );
-    } else if (messages.isEmpty && !showPredefinedBox) {
+    } else if (messages.isEmpty) {
+      // No messages and no predefined box
       return const Center(
         child: Padding(
           padding: EdgeInsets.only(top: 40),
@@ -147,14 +164,20 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
         ),
       );
     } else {
-      // Show chat history if messages exist
-      return Padding(
-        padding: const EdgeInsets.only(top: 10, left: 16),
-        child: Column(
-          children: messages
-              .map((msg) =>
-                  _buildMessageTile(msg['message'], msg['type'] == 'sent'))
-              .toList(),
+      // Show chat history if messages exist and predefined box is off
+      return Container(
+        height: 250,
+        margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10),
+        child: Scrollbar(
+          thumbVisibility: true,
+          radius: const Radius.circular(10),
+          child: ListView.builder(
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final msg = messages[index];
+              return _buildMessageTile(msg['message'], msg['type'] == 'sent');
+            },
+          ),
         ),
       );
     }
@@ -177,40 +200,65 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
       children: row.map((item) {
         return Expanded(
           child: GestureDetector(
-            onTap: () {
-              if (item == 'X') {
-                _discardSelection();
-              } else if (item == 'C') {
-                _showClearChatConfirmationDialog(); // Call the dialog method
-              } else {
-                _selectNumber(item as int);
-              }
-            },
-            child: Container(
-              margin: const EdgeInsets.all(5),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: selectedNumbers.contains(item)
-                    ? const Color(0xFF0C1243)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                item.toString(),
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
+              onTap: () {
+                if (item == 'X') {
+                  _discardSelection();
+                } else if (item == 'C') {
+                  _showClearChatConfirmationDialog(); // Call the dialog method
+                } else {
+                  _selectNumber(item as int);
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.all(6),
+                height: 60,
+                decoration: BoxDecoration(
                   color: selectedNumbers.contains(item)
-                      ? Colors.white
-                      : const Color(0xFF01546B),
+                      ? const Color(0xFF0C1243)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: selectedNumbers.contains(item)
+                      ? Border.all(color: Colors.white, width: 2)
+                      : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.1),
+                      offset: const Offset(0, 2),
+                      blurRadius: 4,
+                    )
+                  ],
                 ),
-              ),
-            ),
-          ),
+                alignment: Alignment.center,
+                child: Text(
+                  item.toString(),
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: selectedNumbers.contains(item)
+                        ? Colors.white
+                        : const Color(0xFF01546B),
+                  ),
+                ),
+              )),
         );
       }).toList(),
     );
+  }
+
+  Future<void> _clearChat() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('chatHistory');
+
+    if (!mounted) return;
+
+    Navigator.of(context).pop(); // Optional: remove if not inside dialog
+
+    setState(() {
+      messages.clear();
+      selectedNumbers.clear();
+      selectedMessageNumber = "";
+      showPredefinedBox = false;
+    });
   }
 
   Future<void> _showClearChatConfirmationDialog() async {
@@ -258,17 +306,7 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('chatHistory');
-              Navigator.of(ctx).pop();
-              setState(() {
-                messages.clear();
-                selectedNumbers.clear();
-                selectedMessageNumber = "";
-                showPredefinedBox = false;
-              });
-            },
+            onPressed: _clearChat,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 18, 115, 194),
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
@@ -302,7 +340,7 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Vessel 003",
+        title: const Text("Web Client",
             style: TextStyle(color: Colors.white, fontSize: 20)),
         actions: [
           Padding(
@@ -326,28 +364,66 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ElevatedButton(
-              onPressed: () =>
-                  setState(() => showPredefinedBox = !showPredefinedBox),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 48),
-              ),
-              child: Text(
-                showPredefinedBox
-                    ? "Close message box"
-                    : "Pick a message to send",
-                style: const TextStyle(
-                    color: Color(0xFF151d67),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16),
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        setState(() => showPredefinedBox = !showPredefinedBox),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF27548A),
+                      minimumSize: const Size.fromHeight(48),
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      shadowColor: Colors.black.withOpacity(0.25),
+                    ),
+                    child: Text(
+                      showPredefinedBox
+                          ? "Close message box"
+                          : "Pick a message",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _showClearChatConfirmationDialog,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: const Color(0XFFE3D095),
+                      minimumSize: const Size.fromHeight(48),
+                      side:
+                          const BorderSide(color: Color(0xFF151d67), width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      "Clear chat",
+                      style: TextStyle(
+                        color: Color.fromARGB(255, 37, 34, 0),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
+
+          //const SizedBox(height: 5),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
             child: _buildNumberPad(),
           ),
           Padding(
@@ -356,17 +432,20 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
               onPressed: selectedMessageNumber.isNotEmpty ? _sendMessage : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: selectedMessageNumber.isNotEmpty
-                    ? Colors.white
+                    ? Color.fromARGB(255, 2, 9, 72)
                     : Colors.grey.shade600,
                 minimumSize: const Size(double.infinity, 55),
+                side: selectedMessageNumber.isEmpty
+                    ? const BorderSide(color: Colors.grey, width: 1)
+                    : BorderSide(color: Colors.white), // no border when enabled
               ),
               child: Text(
                 "Send",
                 style: TextStyle(
                   color: selectedMessageNumber.isNotEmpty
-                      ? const Color(0xFF151d67)
+                      ? Colors.white
                       : Colors.grey.shade400,
-                  fontSize: 22,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
               ),
