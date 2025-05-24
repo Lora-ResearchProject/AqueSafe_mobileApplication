@@ -65,6 +65,23 @@ class ChatService {
     print("✅ Messeage stored locally");
   }
 
+  // Check if the message with the same message ID is already stored
+  Future<bool> _isMessageAlreadyStored(String messageId) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> chatHistory = prefs.getStringList('chatHistory') ?? [];
+
+    for (var message in chatHistory) {
+      var messageData = jsonDecode(message);
+      String storedMessageId = messageData['msg'].split('-')[1];
+
+      if (storedMessageId == messageId) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   void startListeningForMessages(
       Function(Map<String, dynamic>) onMessageReceived) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -86,8 +103,16 @@ class ChatService {
 
       // Ignore messages not meant for this vessel
       if (senderVesselId == vesselId) {
-        print(
-            "✅ Chat message received for this vessel($senderVesselId): $message");
+        //print("✅ Chat message received for this vessel($senderVesselId): $message");
+        String messageId = receivedId.split('|')[1];
+
+        // Check if the message with the same ID is already stored locally
+        bool isMessageAlreadyStored = await _isMessageAlreadyStored(messageId);
+        if (isMessageAlreadyStored) {
+          print(
+              "⚠️ Message with ID $messageId already stored locally. Skipping storage.");
+          return;
+        }
 
         List<Map<String, dynamic>> cachedMessages =
             await _msgScheduler.getCachedChatMessages();
@@ -126,7 +151,8 @@ class ChatService {
       String messageId = fullMsg.split('-')[1];
       int timestamp = GenerateUniqueIdService().getTimestampFromId(messageId);
 
-      // print(">>>>>>> Parsed message with timestamp: $timestamp, message: $message");
+      print(
+          ">>>>>>> Parsed message with timestamp: $timestamp, message: $message");
 
       return {
         'message': message,
