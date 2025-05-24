@@ -103,9 +103,7 @@ class ChatService {
 
       // Ignore messages not meant for this vessel
       if (senderVesselId == vesselId) {
-        print(
-            "✅ Chat message received for this vessel($senderVesselId): $message");
-
+        //print("✅ Chat message received for this vessel($senderVesselId): $message");
         String messageId = receivedId.split('|')[1];
 
         // Check if the message with the same ID is already stored locally

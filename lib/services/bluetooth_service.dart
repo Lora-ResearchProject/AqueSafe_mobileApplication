@@ -324,7 +324,9 @@ class BluetoothService {
       chatSubscription?.cancel(); // Cancel the previous subscription
     }
 
-    _ble.subscribeToCharacteristic(chatCharacteristic).listen(
+    // ✅ FIX: Save the new subscription
+    chatSubscription =
+        _ble.subscribeToCharacteristic(chatCharacteristic).listen(
       (data) {
         if (data.isNotEmpty) {
           String receivedData = utf8.decode(data);

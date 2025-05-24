@@ -477,7 +477,7 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
 
   @override
   void dispose() {
-    _chatService.stopListeningForChatMessages();
     super.dispose();
+    _chatService.stopListeningForChatMessages();
   }
 }
