@@ -400,8 +400,9 @@ class BluetoothService {
       }
 
       String receivedId = weatherResponse["id"];
+      String simpleId = receivedId.split('|')[0];
 
-      if (receivedId != expectedId) {
+      if (simpleId != expectedId) {
         print("⚠️ Mismatched weather response. Ignoring.");
         return null;
       }
