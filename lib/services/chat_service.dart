@@ -44,7 +44,7 @@ class ChatService {
       // Store sent message locally
       await _storeMessageLocally(formattedMsg);
 
-      print("✅ Chat Message Sent & Stored: $formattedMsg");
+      print("✅ Chat Message Sent & Stored locally: $formattedMsg");
     } catch (e) {
       print("❌ Error sending chat message via BLE: $e");
     }
@@ -57,12 +57,29 @@ class ChatService {
 
     chatHistory.add(jsonEncode({"msg": formattedMessage}));
 
-    if (chatHistory.length > 20) {
+    if (chatHistory.length > 10) {
       chatHistory.removeAt(0);
     }
 
     await prefs.setStringList("chatHistory", chatHistory);
     print("✅ Messeage stored locally");
+  }
+
+  // Check if the message with the same message ID is already stored
+  Future<bool> _isMessageAlreadyStored(String messageId) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> chatHistory = prefs.getStringList('chatHistory') ?? [];
+
+    for (var message in chatHistory) {
+      var messageData = jsonDecode(message);
+      String storedMessageId = messageData['msg'].split('-')[1];
+
+      if (storedMessageId == messageId) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   void startListeningForMessages(
@@ -86,8 +103,16 @@ class ChatService {
 
       // Ignore messages not meant for this vessel
       if (senderVesselId == vesselId) {
-        print(
-            "✅ Chat message received for this vessel($senderVesselId): $message");
+        //print("✅ Chat message received for this vessel($senderVesselId): $message");
+        String messageId = receivedId.split('|')[1];
+
+        // Check if the message with the same ID is already stored locally
+        bool isMessageAlreadyStored = await _isMessageAlreadyStored(messageId);
+        if (isMessageAlreadyStored) {
+          print(
+              "⚠️ Message with ID $messageId already stored locally. Skipping storage.");
+          return;
+        }
 
         List<Map<String, dynamic>> cachedMessages =
             await _msgScheduler.getCachedChatMessages();
@@ -98,10 +123,12 @@ class ChatService {
         String messageContent =
             msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
         String formattedMsg =
-            "R-${receivedId.split('|')[1]}-[$message['m']]-$messageContent";
+            "R-${receivedId.split('|')[1]}-[${message['m']}]-$messageContent";
 
         // Store received message locally
         await _storeMessageLocally(formattedMsg);
+
+        print("✅ Chat Message Received & Stored locally: $formattedMsg");
 
         onMessageReceived(message);
       } else {
@@ -115,16 +142,22 @@ class ChatService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
 
+    print("--- 📦 Raw chatHistory from prefs: $chatHistory");
+
     List<Map<String, dynamic>> messages = chatHistory.map((chatData) {
       Map<String, dynamic> chatEntry = jsonDecode(chatData);
-      String message = chatEntry["msg"];
-      String messageId = message.split('-')[0].substring(2);
+      String fullMsg = chatEntry["msg"];
+      String message = "${fullMsg.split('-')[2]}-${fullMsg.split('-')[3]}";
+      String messageId = fullMsg.split('-')[1];
       int timestamp = GenerateUniqueIdService().getTimestampFromId(messageId);
+
+      print(
+          ">>>>>>> Parsed message with timestamp: $timestamp, message: $message");
 
       return {
         'message': message,
         'timestamp': timestamp,
-        'type': message.startsWith("S-") ? 'sent' : 'received',
+        'type': fullMsg.startsWith("S") ? 'sent' : 'received',
       };
     }).toList();
 
@@ -134,7 +167,7 @@ class ChatService {
     return messages;
   }
 
-   // Stop listening for BLE chat messages (Unsubscribe from the BLE stream)
+  // Stop listening for BLE chat messages (Unsubscribe from the BLE stream)
   void stopListeningForChatMessages() {
     if (_chatSubscription != null) {
       _chatSubscription?.cancel(); // Cancel the current subscription

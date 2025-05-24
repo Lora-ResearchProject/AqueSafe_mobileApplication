@@ -30,7 +30,7 @@ class WeatherService {
       GenerateUniqueIdService idService = GenerateUniqueIdService();
       String uniqueMsgId = idService.generateId();
 
-      _lastRequestId = "$vesselId|$uniqueMsgId";
+      _lastRequestId = "$vesselId";
 
       String weatherData = jsonEncode({
         "id": "$vesselId|$uniqueMsgId",

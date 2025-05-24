@@ -1,6 +1,5 @@
 import 'package:aqua_safe/services/bluetooth_service.dart';
 import 'package:flutter/material.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -22,66 +21,124 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   List<bool> isLoadingHotspots = [];
   bool hasHotspotError = false;
   final List<Map<String, double>> destinations = [];
-  late StreamSubscription<AccelerometerEvent> _accelerometerSubscription;
 
   Map<String, double>? userLocation;
   ui.Image? markerImage;
-  double arrowRotation = 0.0;
   late Timer _locationUpdateTimer;
+  double _zoom = 500.0;
+  Offset _panOffset = Offset.zero;
+
+  double _previousScale = 500.0;
+  Offset _previousOffset = Offset.zero;
+  Offset _scaleFocalPoint = Offset.zero;
+
+  Map<String, double>? selectedHotspot;
+  ui.Image? navigationIcon;
 
   @override
   void initState() {
     super.initState();
     _loadMarkerImage();
-    _initializeSensors();
+    // _initializeSensors();
     _startLocationUpdateTimer();
     _fetchFishingHotspots();
   }
 
   @override
   void dispose() {
-    _accelerometerSubscription.cancel(); // Cancel this stream listener!
     _locationUpdateTimer.cancel();
     super.dispose();
   }
 
   void _showNavigateDialog(Map<String, dynamic> hotspot) {
     debugPrint("Hotspots: $hotspots");
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Navigate?"),
-          content: Text(
-              "Do you want to navigate to this hotspot at ${hotspot['latitude']?.toStringAsFixed(4)}, ${hotspot['longitude']?.toStringAsFixed(4)}?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text("Cancel"),
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF151d67),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Center(
+          child: Text(
+            "Navigate?",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-            ElevatedButton(
-              onPressed: () async {
-                setState(() {
-                  destinations.clear();
-                  destinations.add({
-                    'lat': hotspot['latitude'],
-                    'lng': hotspot['longitude']
+          ),
+        ),
+        content: Text(
+          "Do you want to navigate to this hotspot\nat ${hotspot['latitude']?.toStringAsFixed(4)}, ${hotspot['longitude']?.toStringAsFixed(4)}?",
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 18,
+            color: Color.fromARGB(179, 229, 229, 229),
+          ),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        actionsPadding: const EdgeInsets.only(bottom: 20),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
+                  side: const BorderSide(color: Color(0xFF151d67), width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(color: Color(0xFF151d67), fontSize: 18),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() {
+                    selectedHotspot = {
+                      'lat': hotspot['latitude'],
+                      'lng': hotspot['longitude']
+                    };
+                    destinations.clear();
+                    destinations.add(selectedHotspot!);
                   });
-                });
 
-                // ✅ Send linking data with hotspot ID
-                if (hotspot.containsKey('hotspotId')) {
-                  await BluetoothService()
-                      .sendLinkingData(hotspot['hotspotId'].toString());
-                }
+                  if (hotspot.containsKey('hotspotId')) {
+                    await BluetoothService()
+                        .sendLinkingData(hotspot['hotspotId'].toString());
+                  }
 
-                Navigator.of(context).pop();
-              },
-              child: Text("Navigate"),
-            ),
-          ],
-        );
-      },
+                  Navigator.of(ctx).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 18, 115, 194),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  "Navigate",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -100,33 +157,32 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   }
 
   void _handleMapTap(Offset tapPosition) {
+    if (selectedHotspot != null)
+      return; // Prevent further selection if one is active
+
     final Size screenSize = MediaQuery.of(context).size;
-    final double centerX = screenSize.width / 2;
-    final double centerY = screenSize.height / 2;
+    final double centerX = screenSize.width / 2 + _panOffset.dx;
+    final double centerY = screenSize.height / 2 + _panOffset.dy;
 
-    double zoom = 500.0;
+    final double scalePerLng = (screenSize.width * _zoom) / 360;
+    final double scalePerLat = (screenSize.height * _zoom) / 180;
 
-    // These scaling factors need to match what you're using in the painter:
-    final double scalePerLng = (screenSize.width * zoom) / 360;
-    final double scalePerLat = (screenSize.height * zoom) / 180;
-
-    final double lngDiff = (tapPosition.dx - centerX) / scalePerLng;
-    final double latDiff =
-        (tapPosition.dy - centerY) / scalePerLat * -1; // invert Y axis
-
-    final tappedLat = userLocation!['lat']! + latDiff;
-    final tappedLng = userLocation!['lng']! + lngDiff;
-
-    print("👉 Tap detected at: lat: $tappedLat, lng: $tappedLng");
-
-    // Now your distance calculation will make sense!
-    const double thresholdKm = 5;
     for (var hotspot in hotspots) {
-      final double distance = _calculateDistance(
-          tappedLat, tappedLng, hotspot['latitude']!, hotspot['longitude']!);
-      if (distance < thresholdKm) {
-        _showNavigateDialog(
-            hotspot); // Pass the full object with `id`, `latitude`, `longitude`
+      final double latDiff = hotspot['latitude']! - userLocation!['lat']!;
+      final double lngDiff = hotspot['longitude']! - userLocation!['lng']!;
+
+      final double destX = centerX + (lngDiff / 360) * screenSize.width * _zoom;
+      final double destY =
+          centerY + (-latDiff / 180) * screenSize.height * _zoom;
+
+      const double markerHeight = 30.0; // Same as used in CustomPainter
+      const double markerTouchRadius = 30.0;
+
+      final Offset markerCenter = Offset(destX, destY - markerHeight / 2);
+
+      // Check if tap is near marker
+      if ((tapPosition - markerCenter).distance < markerTouchRadius) {
+        _showNavigateDialog(hotspot);
         break;
       }
     }
@@ -182,9 +238,12 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   }
 
   Future<void> _loadMarkerImage() async {
-    final image = await _loadImage('assets/marker_vessel.png');
+    final marker = await _loadImage('assets/marker_vessel.png');
+    final navIcon = await _loadImage('assets/navigation_icon.png');
+
     setState(() {
-      markerImage = image;
+      markerImage = marker;
+      navigationIcon = navIcon;
     });
   }
 
@@ -234,41 +293,171 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     });
   }
 
-  void _initializeSensors() {
-    _accelerometerSubscription = accelerometerEvents.listen((event) {
-      if (!mounted) return;
-      setState(() {
-        arrowRotation = math.atan2(event.y, event.x);
-      });
-    });
+  Widget _buildZoomButton(
+      {required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 75,
+        height: 75,
+        decoration: BoxDecoration(
+          color: const Color(0xFF151d67),
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 32,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecenterButton({required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: const Color(0xFF151d67),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.my_location,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: const Color(0xFF151d67),
+        elevation: 0,
         title: const Text(
-          'Fishing Spots',
-          style: TextStyle(color: Colors.black),
+          "Fishing Spots",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black),
-        elevation: 1,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+
+        // NEW Save Location button
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.bookmark_add, color: Colors.white),
+        //     tooltip: "Save Fishing Location",
+        //     onPressed: () async {
+        //       await fishingHotspotService.saveFishingLocation();
+        //       ScaffoldMessenger.of(context).showSnackBar(
+        //         const SnackBar(
+        //           content: Text("📍 Fishing location saved via Bluetooth"),
+        //           duration: Duration(seconds: 2),
+        //         ),
+        //       );
+        //     },
+        //   ),
+        // ],
       ),
       body: userLocation == null
           ? const Center(child: CircularProgressIndicator())
-          : GestureDetector(
-              onTapUp: (details) => _handleMapTap(details.localPosition),
-              child: CustomPaint(
-                size: MediaQuery.of(context).size,
-                painter: MapPainter(
-                  userLocation: userLocation,
-                  destinations: destinations,
-                  markerImage: markerImage,
-                  arrowRotation: arrowRotation,
-                  zoom: 500.0,
+          : Stack(
+              children: [
+                GestureDetector(
+                  onTapUp: (details) => _handleMapTap(details.localPosition),
+                  onScaleStart: (details) {
+                    _previousScale = _zoom;
+                    _previousOffset = _panOffset;
+                    _scaleFocalPoint = details.focalPoint;
+                  },
+                  onScaleUpdate: (details) {
+                    setState(() {
+                      _zoom =
+                          (_previousScale * details.scale).clamp(100.0, 2000.0);
+                      final Offset delta =
+                          details.focalPoint - _scaleFocalPoint;
+                      _panOffset = _previousOffset + delta;
+                    });
+                  },
+                  child: CustomPaint(
+                    size: MediaQuery.of(context).size,
+                    painter: MapPainter(
+                        userLocation: userLocation,
+                        destinations: destinations,
+                        markerImage: markerImage,
+                        navigationIcon: navigationIcon,
+                        zoom: _zoom,
+                        panOffset: _panOffset,
+                        selectedHotspot: selectedHotspot),
+                  ),
                 ),
-              ),
+
+                // Zoom Controls
+                Positioned(
+                  right: 16,
+                  bottom: MediaQuery.of(context).padding.bottom + 40,
+                  child: Column(
+                    children: [
+                      _buildZoomButton(
+                        icon: Icons.add,
+                        onTap: () {
+                          setState(() {
+                            _zoom = (_zoom * 1.2).clamp(100.0, 2000.0);
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildZoomButton(
+                        icon: Icons.remove,
+                        onTap: () {
+                          setState(() {
+                            _zoom = (_zoom / 1.2).clamp(100.0, 2000.0);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Recenter Button
+                Positioned(
+                  left: 16,
+                  bottom: MediaQuery.of(context).padding.bottom + 40,
+                  child: _buildRecenterButton(
+                    onTap: () {
+                      setState(() {
+                        _panOffset = Offset.zero;
+                        _zoom = 500.0;
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
     );
   }
@@ -278,15 +467,19 @@ class MapPainter extends CustomPainter {
   final Map<String, double>? userLocation;
   final List<Map<String, double>> destinations;
   final ui.Image? markerImage;
-  final double arrowRotation;
   final double zoom;
+  final Offset panOffset;
+  final Map<String, double>? selectedHotspot;
+  final ui.Image? navigationIcon;
 
   MapPainter({
     required this.userLocation,
     required this.destinations,
     this.markerImage,
-    required this.arrowRotation,
-    this.zoom = 500.0,
+    this.navigationIcon,
+    required this.zoom,
+    required this.panOffset,
+    this.selectedHotspot,
   });
 
   @override
@@ -297,24 +490,12 @@ class MapPainter extends CustomPainter {
     canvas.drawRect(
         Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
+    final centerX = size.width / 2 + panOffset.dx;
+    final centerY = size.height / 2 + panOffset.dy;
 
-    // Convert lat/lng differences into pixel offsets
+    // Converts lat/lng differences into pixel offsets
     double lngToOffset(double lngDiff) => (lngDiff / 360) * size.width * zoom;
     double latToOffset(double latDiff) => (-latDiff / 180) * size.height * zoom;
-
-    // Draw user arrow at center
-    canvas.save();
-    canvas.translate(centerX, centerY);
-    canvas.rotate(arrowRotation);
-    final arrowPath = Path()
-      ..moveTo(0, -20)
-      ..lineTo(-10, 10)
-      ..lineTo(10, 10)
-      ..close();
-    canvas.drawPath(arrowPath, Paint()..color = Colors.green);
-    canvas.restore();
 
     final Paint linePaint = Paint()
       ..color = Colors.red
@@ -323,17 +504,24 @@ class MapPainter extends CustomPainter {
     final textStyle = TextStyle(color: Colors.black, fontSize: 12);
 
     for (final destination in destinations) {
+      // Skip others if a specific hotspot is selected
+      if (selectedHotspot != null &&
+          (destination['lat'] != selectedHotspot!['lat'] ||
+              destination['lng'] != selectedHotspot!['lng'])) {
+        continue;
+      }
+
       final double latDiff = destination['lat']! - userLocation!['lat']!;
       final double lngDiff = destination['lng']! - userLocation!['lng']!;
 
       final double destX = centerX + lngToOffset(lngDiff);
       final double destY = centerY + latToOffset(latDiff);
 
-      // Draw line to each destination
+      // 🔹 Draw line from user to hotspot
       canvas.drawLine(
           Offset(centerX, centerY), Offset(destX, destY), linePaint);
 
-      // Draw marker image
+      // 🔹 Draw marker image
       const double markerWidth = 20;
       const double markerHeight = 30;
       canvas.drawImageRect(
@@ -345,7 +533,14 @@ class MapPainter extends CustomPainter {
         Paint(),
       );
 
-      // Distance label
+      // Debug: Show clickable zone
+      canvas.drawCircle(
+        Offset(destX, destY - markerHeight / 2),
+        30.0, // Same as markerTouchRadius
+        Paint()..color = Colors.blue.withOpacity(0.2),
+      );
+
+      // 🔹 Draw distance label
       double distance = calculateDistance(
         userLocation!['lat']!,
         userLocation!['lng']!,
@@ -363,6 +558,56 @@ class MapPainter extends CustomPainter {
       final midX = (centerX + destX) / 2;
       final midY = (centerY + destY) / 2;
       textPainter.paint(canvas, Offset(midX, midY));
+    }
+
+    // Draw user location as a circle
+    const double userRadius = 6.0;
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      userRadius + 1,
+      Paint()..color = Colors.white,
+    );
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      userRadius,
+      Paint()..color = const Color.fromARGB(255, 26, 86, 191),
+    );
+
+    // Draw arrow to selected hotspot
+    if (selectedHotspot != null && navigationIcon != null) {
+      final double latDiff = selectedHotspot!['lat']! - userLocation!['lat']!;
+      final double lngDiff = selectedHotspot!['lng']! - userLocation!['lng']!;
+      final double destX = centerX + lngToOffset(lngDiff);
+      final double destY = centerY + latToOffset(latDiff);
+
+      final double dx = destX - centerX;
+      final double dy = destY - centerY;
+      final double angle = math.atan2(dy, dx) + (math.pi);
+
+      const double iconSize = 30.0;
+
+      canvas.save();
+      canvas.translate(centerX, centerY);
+      canvas.rotate(angle);
+
+      // Draw the rotated image centered
+      canvas.drawImageRect(
+        navigationIcon!,
+        Rect.fromLTWH(
+          0,
+          0,
+          navigationIcon!.width.toDouble(),
+          navigationIcon!.height.toDouble(),
+        ),
+        Rect.fromCenter(
+          center: Offset(0, 0),
+          width: iconSize,
+          height: iconSize,
+        ),
+        Paint(),
+      );
+
+      canvas.restore();
     }
   }
 

@@ -14,6 +14,7 @@ import '../services/bluetooth_service.dart';
 import 'screens/edit_account.dart';
 import 'screens/change_password.dart';
 import '../services/sos_history_scheduler.dart';
+import 'screens/improvedChat.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,7 +71,7 @@ class AquaSafeApp extends StatelessWidget {
         '/edit_account': (context) => const EditAccountScreen(),
         '/change_password': (context) => const ChangePasswordScreen(),
         '/weather_map': (context) => const WeatherMapScreen(),
-        '/chat': (context) => const ChatScreen()
+        '/chat': (context) => const ImprovedChatScreen()
       },
     );
   }
