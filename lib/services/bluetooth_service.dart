@@ -321,7 +321,7 @@ class BluetoothService {
     // Always cancel the previous subscription if it exists
     if (chatSubscription != null) {
       print("🔕 Cancelling existing subscription.");
-      chatSubscription?.cancel(); // Cancel the previous subscription
+      chatSubscription?.cancel();
     }
 
     // ✅ FIX: Save the new subscription
