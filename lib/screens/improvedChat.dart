@@ -70,6 +70,13 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
   }
 
   Widget _buildMessageTile(String text, bool isSent) {
+    // Check if the message contains the word 'Location'
+    bool containsLocation = text.contains("Location");
+
+    Color backgroundColor = containsLocation
+        ? const Color.fromARGB(255, 255, 179, 174) // Light red color
+        : (isSent ? const Color(0xFFA3E2FF) : Colors.white); // Default color
+
     return Align(
       alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -81,13 +88,13 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isSent ? const Color(0xFFA3E2FF) : Colors.white,
+          color: isSent ? const Color(0xFFA3E2FF) : backgroundColor,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           text,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             color: isSent ? Colors.black : Colors.black87,
           ),
         ),
