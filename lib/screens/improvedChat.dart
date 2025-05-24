@@ -33,17 +33,13 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
         await _chatService.getChatHistory();
     if (!mounted) return;
 
-    // for (var msg in chatHistory) {
-    //   print(">>>>>>>>> Loaded Msg: ${msg['message']} - Timestamp: ${msg['timestamp']} - Type: ${msg['type']}");
-    // }
+    for (var msg in chatHistory) {
+      print(
+          ">>>>>>>>> Loaded Msg: ${msg['message']} - Timestamp: ${msg['timestamp']} - Type: ${msg['type']}");
+    }
 
     setState(() {
       messages = chatHistory;
-
-      // ✅ Automatically hide predefined box if messages now exist
-      // if (messages.isNotEmpty) {
-      //   showPredefinedBox = false;
-      // }
     });
   }
 
@@ -100,87 +96,98 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
   }
 
   Widget _buildDynamicHeader() {
-    if (showPredefinedBox) {
-      // Always show predefined box if toggled on
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 16.0, bottom: 10, top: 10),
-            child: Text(
-              "Select the message code to send",
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white),
-              borderRadius: BorderRadius.circular(10),
-              color: const Color(0xFF10194E),
-            ),
-            height: 250, // Adjust height as needed
-            child: FutureBuilder(
-              future: _chatMessageScheduler.getCachedChatMessages(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final messages = snapshot.data as List<Map<String, dynamic>>;
-                return Scrollbar(
-                  thumbVisibility: true,
-                  child: ListView.builder(
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final msg = messages[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(
-                          "[${msg['messageNumber']}] - ${msg['message']}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                          ),
+    final screenHeight = MediaQuery.of(context).size.height;
+    final predefinedBoxHeight = screenHeight * 0.30; // 30% of screen
+    final chatBoxHeight = screenHeight * 0.35;
+
+    return Container(
+      // Temporary border to identify the space used by _buildDynamicHeader
+      // decoration: BoxDecoration(
+      //   border: Border.all(
+      //       color: Colors.yellow,
+      //       width: 2),
+      // ),
+      child: showPredefinedBox
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(left: 16.0, bottom: 10, top: 10),
+                  child: Text(
+                    "Select the message code to send",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+                // Container for the message list
+                Container(
+                  margin: const EdgeInsets.only(left: 16, right: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white),
+                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFF10194E),
+                  ),
+                  height: predefinedBoxHeight, // Adjust height as needed
+                  child: FutureBuilder(
+                    future: _chatMessageScheduler.getCachedChatMessages(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final messages =
+                          snapshot.data as List<Map<String, dynamic>>;
+                      return Scrollbar(
+                        thumbVisibility: true,
+                        child: ListView.builder(
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = messages[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Text(
+                                "[${msg['messageNumber']}] - ${msg['message']}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },
                   ),
-                );
-              },
-            ),
-          ),
-        ],
-      );
-    } else if (messages.isEmpty) {
-      // No messages and no predefined box
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.only(top: 40),
-          child: Text(
-            "No messages yet",
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-        ),
-      );
-    } else {
-      // Show chat history if messages exist and predefined box is off
-      return Container(
-        height: 250,
-        margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10),
-        child: Scrollbar(
-          thumbVisibility: true,
-          radius: const Radius.circular(10),
-          child: ListView.builder(
-            itemCount: messages.length,
-            itemBuilder: (context, index) {
-              final msg = messages[index];
-              return _buildMessageTile(msg['message'], msg['type'] == 'sent');
-            },
-          ),
-        ),
-      );
-    }
+                ),
+              ],
+            )
+          : (messages.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 60, vertical: 100),
+                    child: Text(
+                      "No messages yet",
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ),
+                )
+              : Container(
+                  height: chatBoxHeight,
+                  margin: const EdgeInsets.only(left: 12.0, right: 12.0),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    radius: const Radius.circular(10),
+                    child: ListView.builder(
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[index];
+                        return _buildMessageTile(
+                            msg['message'], msg['type'] == 'sent');
+                      },
+                    ),
+                  ),
+                )),
+    );
   }
 
   Widget _buildNumberPad() {
@@ -330,131 +337,142 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isChatStarted = messages.isNotEmpty;
-
     return Scaffold(
-      backgroundColor: const Color(0xFF151d67),
-      appBar: AppBar(
         backgroundColor: const Color(0xFF151d67),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF151d67),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text("Web Client",
+              style: TextStyle(color: Colors.white, fontSize: 20)),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Row(
+                children: const [
+                  Text("Active Now",
+                      style: TextStyle(color: Colors.white, fontSize: 14)),
+                  SizedBox(width: 6),
+                  CircleAvatar(radius: 5, backgroundColor: Colors.cyanAccent),
+                ],
+              ),
+            ),
+          ],
         ),
-        title: const Text("Web Client",
-            style: TextStyle(color: Colors.white, fontSize: 20)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              children: const [
-                Text("Active Now",
-                    style: TextStyle(color: Colors.white, fontSize: 14)),
-                SizedBox(width: 6),
-                CircleAvatar(radius: 5, backgroundColor: Colors.cyanAccent),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: _buildDynamicHeader(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () =>
-                        setState(() => showPredefinedBox = !showPredefinedBox),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF27548A),
-                      minimumSize: const Size.fromHeight(48),
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+        body: Container(
+          // Temporary border to identify the space used by body
+          // decoration: BoxDecoration(
+          //   border:
+          //       Border.all(color: Colors.yellow, width: 2),
+          // ),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.zero,
+                  child: _buildDynamicHeader(),
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18.0, vertical: 0),
+                child: Container(
+                  // Temporary border to identify the space used by clear and pick message buttons
+                  // decoration: BoxDecoration(
+                  //   border: Border.all(
+                  //       color: Colors.yellow,
+                  //       width: 2),
+                  // ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => setState(
+                              () => showPredefinedBox = !showPredefinedBox),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF27548A),
+                            minimumSize: const Size.fromHeight(48),
+                            elevation: 3,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            shadowColor: Colors.black.withOpacity(0.25),
+                          ),
+                          child: Text(
+                            showPredefinedBox ? "Hide" : "Pick a message",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
                       ),
-                      shadowColor: Colors.black.withOpacity(0.25),
-                    ),
-                    child: Text(
-                      showPredefinedBox
-                          ? "Close message box"
-                          : "Pick a message",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        letterSpacing: 0.5,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _showClearChatConfirmationDialog,
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: const Color(0XFFE3D095),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            "Clear chat",
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 37, 34, 0),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
+                child: _buildNumberPad(),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton(
+                  onPressed:
+                      selectedMessageNumber.isNotEmpty ? _sendMessage : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: selectedMessageNumber.isNotEmpty
+                        ? Color.fromRGBO(2, 9, 72, 1)
+                        : Colors.grey.shade600,
+                    minimumSize: const Size(double.infinity, 55),
+                    side: selectedMessageNumber.isEmpty
+                        ? const BorderSide(color: Colors.grey, width: 1)
+                        : BorderSide(
+                            color: Colors.white), // no border when enabled
+                  ),
+                  child: Text(
+                    "Send",
+                    style: TextStyle(
+                      color: selectedMessageNumber.isNotEmpty
+                          ? Colors.white
+                          : Colors.grey.shade400,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _showClearChatConfirmationDialog,
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0XFFE3D095),
-                      minimumSize: const Size.fromHeight(48),
-                      side:
-                          const BorderSide(color: Color(0xFF151d67), width: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      "Clear chat",
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 37, 34, 0),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          //const SizedBox(height: 5),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
-            child: _buildNumberPad(),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ElevatedButton(
-              onPressed: selectedMessageNumber.isNotEmpty ? _sendMessage : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: selectedMessageNumber.isNotEmpty
-                    ? Color.fromARGB(255, 2, 9, 72)
-                    : Colors.grey.shade600,
-                minimumSize: const Size(double.infinity, 55),
-                side: selectedMessageNumber.isEmpty
-                    ? const BorderSide(color: Colors.grey, width: 1)
-                    : BorderSide(color: Colors.white), // no border when enabled
               ),
-              child: Text(
-                "Send",
-                style: TextStyle(
-                  color: selectedMessageNumber.isNotEmpty
-                      ? Colors.white
-                      : Colors.grey.shade400,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+              const SizedBox(height: 16),
+            ],
           ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
+        ));
   }
 
   @override
