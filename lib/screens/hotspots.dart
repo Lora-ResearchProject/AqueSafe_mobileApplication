@@ -409,7 +409,10 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
         // ],
       ),
       body: userLocation == null
-          ? const Center(child: CircularProgressIndicator())
+          ? Container(
+              color: Colors.blue.shade100,
+              child: const Center(child: CircularProgressIndicator()),
+            )
           : Stack(
               children: [
                 GestureDetector(
