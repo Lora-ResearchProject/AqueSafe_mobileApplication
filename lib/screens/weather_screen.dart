@@ -1,4 +1,3 @@
-import 'package:aqua_safe/screens/weather_map.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/weather_service.dart';
