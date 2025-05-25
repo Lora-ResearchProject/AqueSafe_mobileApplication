@@ -139,16 +139,23 @@ class _DashboardState extends State<Dashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildConnectionStatus(
-                        label: 'Bluetooth',
-                        isConnected: true,
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _bluetoothService.isConnectedNotifier,
+                        builder: (context, isConnected, child) {
+                          return _buildConnectionStatus(
+                            label: 'Bluetooth',
+                            isConnected: isConnected,
+                          );
+                        },
                       ),
                       _buildConnectionStatus(
                         label: 'LoRa',
-                        isConnected: true,
+                        isConnected:
+                            true, 
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
 
                   // SOS Trigger Button
