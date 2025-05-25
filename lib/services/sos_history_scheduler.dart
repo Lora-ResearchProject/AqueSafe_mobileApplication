@@ -25,8 +25,7 @@ class SOSHistoryScheduler {
       }
     });
 
-    _checkScheduler =
-        Timer.periodic(const Duration(seconds: 30), (timer) async {
+    _checkScheduler = Timer.periodic(const Duration(hours: 3), (timer) async {
       _checkLatestSOSStatus();
     });
   }
@@ -55,6 +54,12 @@ class SOSHistoryScheduler {
       return false;
     }
   }
+
+  // Public method to allow external classes to fetch and cache SOS history
+Future<void> fetchAndCacheSOSHistoryPublic() async {
+  await _fetchAndCacheSOSHistory();
+}
+
 
   Future<void> _fetchAndCacheSOSHistory() async {
     try {
@@ -122,16 +127,14 @@ class SOSHistoryScheduler {
 
     if (cachedHistory == null || cachedHistory.isEmpty) {
       print("❌ No cached SOS history available. Clearing last SOS.");
-      await _clearLastSOS();
-      return;
+      return; // Don't clear if no cache — we may just be offline
     }
 
     List<dynamic> alerts = jsonDecode(cachedHistory);
 
     if (alerts.isEmpty) {
       print("⚠️ Cached SOS history is empty. Clearing last SOS.");
-      await _clearLastSOS();
-      return;
+      return; // Same: don't remove, just wait for next update
     }
 
     bool sosStillActive = alerts.any((alert) =>

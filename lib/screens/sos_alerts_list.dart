@@ -27,7 +27,6 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
 
     if (timestamp != null) {
       DateTime lastUpdated = DateTime.parse(timestamp);
-
       String formattedDate =
           DateFormat('yyyy-MM-dd at h:mm a').format(lastUpdated);
 
@@ -69,9 +68,12 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Large refresh button
             ElevatedButton(
-              onPressed: _fetchCachedSOSHistory,
+              onPressed: () async {
+                await _sosScheduler.fetchAndCacheSOSHistoryPublic();
+                await _fetchCachedSOSHistory();
+                await _fetchLastUpdatedTime();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 255, 255, 255),
                 padding:
@@ -90,16 +92,12 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Last updated time display
             Text(
               lastUpdatedTime,
               style: const TextStyle(color: Colors.white, fontSize: 16),
               textAlign: TextAlign.left,
             ),
             const SizedBox(height: 16),
-
-            // SOS Alerts List
             Expanded(
               child: sosAlerts.isEmpty
                   ? const Center(

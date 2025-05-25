@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import '../services/fishing_hotspot_service.dart';
 import '../services/location_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class HotspotsScreen extends StatefulWidget {
   const HotspotsScreen({Key? key}) : super(key: key);
@@ -20,7 +22,7 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   List<Map<String, dynamic>> hotspots = [];
   List<bool> isLoadingHotspots = [];
   bool hasHotspotError = false;
-  final List<Map<String, double>> destinations = [];
+  final List<Map<String, dynamic>> destinations = [];
 
   Map<String, double>? userLocation;
   ui.Image? markerImage;
@@ -32,14 +34,14 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   Offset _previousOffset = Offset.zero;
   Offset _scaleFocalPoint = Offset.zero;
 
-  Map<String, double>? selectedHotspot;
+  Map<String, dynamic>? selectedHotspot;
   ui.Image? navigationIcon;
 
   @override
   void initState() {
     super.initState();
     _loadMarkerImage();
-    // _initializeSensors();
+    _loadSelectedHotspot(); // Load selected if exists
     _startLocationUpdateTimer();
     _fetchFishingHotspots();
   }
@@ -48,6 +50,22 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
   void dispose() {
     _locationUpdateTimer.cancel();
     super.dispose();
+  }
+
+  _loadSelectedHotspot() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? saved = prefs.getString('selectedHotspot');
+    if (saved != null) {
+      final Map<String, dynamic> selected = jsonDecode(saved);
+      setState(() {
+        selectedHotspot = {
+          'lat': selected['lat'],
+          'lng': selected['lng'],
+        };
+        destinations.clear();
+        destinations.add(selectedHotspot!);
+      });
+    }
   }
 
   void _showNavigateDialog(Map<String, dynamic> hotspot) {
@@ -102,13 +120,19 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
               ),
               ElevatedButton(
                 onPressed: () async {
+                  final selected = {
+                    'lat': hotspot['latitude'],
+                    'lng': hotspot['longitude']
+                  };
+
+                  // Store in SharedPreferences
+                  final prefs = await SharedPreferences.getInstance();
+                  prefs.setString('selectedHotspot', jsonEncode(selected));
+
                   setState(() {
-                    selectedHotspot = {
-                      'lat': hotspot['latitude'],
-                      'lng': hotspot['longitude']
-                    };
+                    selectedHotspot = selected;
                     destinations.clear();
-                    destinations.add(selectedHotspot!);
+                    destinations.add(selected);
                   });
 
                   if (hotspot.containsKey('hotspotId')) {
@@ -325,8 +349,8 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 60,
-        height: 60,
+        width: 70,
+        height: 70,
         decoration: BoxDecoration(
           color: const Color(0xFF151d67),
           shape: BoxShape.circle,
@@ -341,7 +365,7 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
         child: const Icon(
           Icons.my_location,
           color: Colors.white,
-          size: 28,
+          size: 30,
         ),
       ),
     );
@@ -385,7 +409,10 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
         // ],
       ),
       body: userLocation == null
-          ? const Center(child: CircularProgressIndicator())
+          ? Container(
+              color: Colors.blue.shade100,
+              child: const Center(child: CircularProgressIndicator()),
+            )
           : Stack(
               children: [
                 GestureDetector(
@@ -457,6 +484,49 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
                     },
                   ),
                 ),
+
+                // Cancel Navigation Button (Top-Right)
+                if (selectedHotspot != null)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 16,
+                    right: 16,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD71313),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 6,
+                      ),
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        prefs.remove('selectedHotspot');
+
+                        setState(() {
+                          selectedHotspot = null;
+                          destinations.clear();
+                          destinations.addAll(hotspots.map((hotspot) {
+                            return {
+                              'lat': hotspot['latitude'] as double,
+                              'lng': hotspot['longitude'] as double,
+                            };
+                          }).toList());
+                        });
+                      },
+                      icon: const Icon(Icons.cancel,
+                          color: Colors.white, size: 28),
+                      label: const Text(
+                        "Cancel Navigation",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
@@ -465,11 +535,11 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
 
 class MapPainter extends CustomPainter {
   final Map<String, double>? userLocation;
-  final List<Map<String, double>> destinations;
+  final List<Map<String, dynamic>> destinations;
   final ui.Image? markerImage;
   final double zoom;
   final Offset panOffset;
-  final Map<String, double>? selectedHotspot;
+  final Map<String, dynamic>? selectedHotspot;
   final ui.Image? navigationIcon;
 
   MapPainter({

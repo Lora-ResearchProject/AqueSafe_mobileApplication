@@ -33,12 +33,15 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
-    // _bluetoothService.monitorConnection();
     print(AppStateManager().isSOSInProgress);
     print(AppStateManager().sosTimeAgo);
     print(AppStateManager().status);
 
-    _loadSOSStatus();
+    _loadSOSStatus(); // Initial load
+
+    AppStateManager().sosStatusNotifier.addListener(() {
+      _loadSOSStatus(); // Auto-refresh on SOS updates
+    });
 
     _screens = [
       _buildDashboardContent(),
@@ -48,7 +51,6 @@ class _DashboardState extends State<Dashboard> {
 
   // Load SOS status from local storage
   Future<void> _loadSOSStatus() async {
-    setState(() => isLoading = true);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? lastSOSData = prefs.getString('lastSOS');
 
@@ -139,9 +141,14 @@ class _DashboardState extends State<Dashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildConnectionStatus(
-                        label: 'Bluetooth',
-                        isConnected: true,
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _bluetoothService.isConnectedNotifier,
+                        builder: (context, isConnected, child) {
+                          return _buildConnectionStatus(
+                            label: 'Bluetooth',
+                            isConnected: isConnected,
+                          );
+                        },
                       ),
                       _buildConnectionStatus(
                         label: 'LoRa',
@@ -149,6 +156,7 @@ class _DashboardState extends State<Dashboard> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
 
                   // SOS Trigger Button
@@ -190,87 +198,95 @@ class _DashboardState extends State<Dashboard> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Show latest SOS if active
-                  isSOSActive
-                      ? GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => SOSDetailView()),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 134, 10, 10),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.info_outline,
-                                      color: Colors.white,
-                                      size: 24,
+                  /// ✅ Use ValueListenableBuilder for reactive SOS state
+                  ValueListenableBuilder<bool>(
+                    valueListenable: AppStateManager().sosStatusNotifier,
+                    builder: (context, _, __) {
+                      // Reload status every time notifier updates
+                      _loadSOSStatus();
+
+                      return isSOSActive
+                          ? GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => SOSDetailView()),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12.0),
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 134, 10, 10),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        'SOS Alert in Progress',
-                                        style: const TextStyle(
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.info_outline,
                                           color: Colors.white,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
+                                          size: 24,
                                         ),
-                                      ),
+                                        const SizedBox(width: 12),
+                                        const Expanded(
+                                          child: Text(
+                                            'SOS Alert in Progress',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const CircleAvatar(
+                                          backgroundColor: Color.fromARGB(
+                                              255, 105, 245, 110),
+                                          radius: 8,
+                                        ),
+                                      ],
                                     ),
-                                    const CircleAvatar(
-                                      backgroundColor:
-                                          Color.fromARGB(255, 105, 245, 110),
-                                      radius: 8,
-                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const SizedBox(width: 36),
+                                        Text(
+                                          sosTimeAgo ?? "Unknown",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w300,
+                                          ),
+                                        ),
+                                      ],
+                                    )
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const SizedBox(width: 36),
-                                    Text(
-                                      sosTimeAgo ?? "Unknown",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w300,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                        )
-                      : const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              "No notifications",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
                               ),
-                            ),
-                          ),
-                        ),
+                            )
+                          : const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Text(
+                                  "No notifications",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            );
+                    },
+                  ),
 
                   const SizedBox(height: 20),
 

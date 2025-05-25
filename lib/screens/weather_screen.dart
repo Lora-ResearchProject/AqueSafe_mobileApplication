@@ -151,41 +151,41 @@ class _WeatherScreenState extends State<WeatherScreen> {
       body: Column(
         children: [
           // View Hotspot Map Button (Right-Aligned)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 200,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const WeatherMapScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    icon: const Icon(Icons.map, color: Colors.white),
-                    label: const Text("View Hotspot Map",
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.end,
+          //     children: [
+          //       SizedBox(
+          //         width: 200,
+          //         child: ElevatedButton.icon(
+          //           onPressed: () {
+          //             Navigator.push(
+          //               context,
+          //               MaterialPageRoute(
+          //                 builder: (context) => const WeatherMapScreen(),
+          //               ),
+          //             );
+          //           },
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: Colors.blueAccent,
+          //             padding: const EdgeInsets.symmetric(vertical: 10),
+          //             shape: RoundedRectangleBorder(
+          //               borderRadius: BorderRadius.circular(6),
+          //             ),
+          //             textStyle: const TextStyle(
+          //               fontSize: 16,
+          //               fontWeight: FontWeight.bold,
+          //             ),
+          //           ),
+          //           icon: const Icon(Icons.map, color: Colors.white),
+          //           label: const Text("View Hotspot Map",
+          //               style: TextStyle(color: Colors.white)),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
           const SizedBox(height: 20),
 
           // Navigation Bar (Current & Hotspots with Loading State)
