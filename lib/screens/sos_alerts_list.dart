@@ -13,6 +13,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
   List<Map<String, dynamic>> sosAlerts = [];
   final SOSHistoryScheduler _sosScheduler = SOSHistoryScheduler();
   String lastUpdatedTime = 'Loading...';
+  bool _isLoading = false; // 
 
   @override
   void initState() {
@@ -28,7 +29,7 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
     if (timestamp != null) {
       DateTime lastUpdated = DateTime.parse(timestamp);
       String formattedDate =
-          DateFormat('yyyy-MM-dd at h:mm a').format(lastUpdated);
+          DateFormat("yyyy-MM-dd 'at' h:mm a").format(lastUpdated);
 
       setState(() {
         lastUpdatedTime = 'Last updated on $formattedDate';
@@ -70,25 +71,52 @@ class _SOSAlertScreenState extends State<SOSAlertScreen> {
           children: [
             ElevatedButton(
               onPressed: () async {
+                setState(() {
+                  _isLoading = true;
+                });
                 await _sosScheduler.fetchAndCacheSOSHistoryPublic();
                 await _fetchCachedSOSHistory();
                 await _fetchLastUpdatedTime();
+                setState(() {
+                  _isLoading = false;
+                });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 16, horizontal: 130),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                fixedSize: const Size(
+                    340, 56), // wider to align with alert card borders
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Refresh',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF151d67),
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 120,
+                    child: Text(
+                      'Refresh',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF151d67),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Color(0xFF151d67),
+                          )
+                        : null,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
