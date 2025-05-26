@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/appStateManager.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'dart:math' as math;
 
 class SOSDetailView extends StatefulWidget {
   const SOSDetailView({Key? key}) : super(key: key);

@@ -145,33 +145,134 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Scaffold(
+  //     backgroundColor: Colors.blue[900],
+  //     body: Center(
+  //       child: Column(
+  //         mainAxisAlignment: MainAxisAlignment.center,
+  //         children: [
+  //           const Text(
+  //             'AquaSafe',
+  //             style: TextStyle(
+  //               fontSize: 38,
+  //               fontWeight: FontWeight.bold,
+  //               color: Colors.white,
+  //             ),
+  //           ),
+  //           const SizedBox(height: 26),
+  //           const CircularProgressIndicator(),
+  //           const SizedBox(height: 20),
+  //           Text(
+  //             _loadingMessage,
+  //             style: const TextStyle(
+  //               fontSize: 18,
+  //               color: Colors.white,
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
+
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      backgroundColor: Colors.blue[900],
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'AquaSafe',
-              style: TextStyle(
-                fontSize: 38,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+      body: Container(
+        width: size.width,
+        height: size.height,
+        // decoration: const BoxDecoration(
+        //   gradient: LinearGradient(
+        //     colors: [
+        //       Color(0xFF1C3D72), // new top color
+        //       Color(0xFF0B3A71), // previous bottom color
+        //     ],
+        //     begin: Alignment.topCenter,
+        //     end: Alignment.bottomCenter,
+        //   ),
+        // ),
+        color: const Color(0xFF151d67),
+        child: SafeArea(
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween, // space between top & bottom
+            children: [
+              // Empty container or spacer for top padding if needed
+              const SizedBox(height: 1),
+
+              // Centered main content
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'AquaSafe',
+                          style: TextStyle(
+                            fontSize: size.width * 0.12,
+                            // fontWeight: FontWeight.bold,
+                            fontFamily: 'Lobster',
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Image.asset(
+                          'assets/logo.png',
+                          width: size.width * 0.2,
+                          height: size.width * 0.2,
+                          fit: BoxFit.contain,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    Text(
+                      'Stay in Touch, Stay Protected\nAnytime, Anywhere',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: size.width * 0.045,
+                        height: 1.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 26),
-            const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-            Text(
-              _loadingMessage,
-              style: const TextStyle(
-                fontSize: 18,
-                color: Colors.white,
+
+              // Loading message at bottom
+              Padding(
+                padding: EdgeInsets.only(bottom: size.height * 0.03),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: size.width * 0.04,
+                      height: size.width * 0.04,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: size.width * 0.02),
+                    Text(
+                      _loadingMessage,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: size.width * 0.035,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
