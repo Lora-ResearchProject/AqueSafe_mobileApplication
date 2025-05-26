@@ -58,8 +58,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
       latitude = position.latitude;
       longitude = position.longitude;
 
-      List<Map<String, dynamic>> fetchedHotspots =
-          await fishingHotspotService.fetchSuggestedFishingHotspots(latitude, longitude);
+      List<Map<String, dynamic>> fetchedHotspots = await fishingHotspotService
+          .fetchSuggestedFishingHotspots(latitude, longitude);
 
       if (fetchedHotspots.isNotEmpty) {
         setState(() {
@@ -227,7 +227,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 children: [
                   Text(
                     locationName,
-                    style: const TextStyle(fontSize: 26, color: Colors.white),
+                    style: const TextStyle(fontSize: 30, color: Colors.white),
                   ),
                   const SizedBox(height: 20),
 
@@ -240,7 +240,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
                   Text(
                     weatherCondition,
-                    style: const TextStyle(fontSize: 22, color: Colors.white),
+                    style: const TextStyle(fontSize: 30, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 10),
@@ -260,14 +260,14 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               : "$weatherPercentage%",
                           // text: "${weatherPercentage ?? 0}%",
                           style: TextStyle(
-                            fontSize: weatherPercentage == null ? 30 : 60,
+                            fontSize: weatherPercentage == null ? 30 : 80,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 40),
 
                   // Forecast Timeline
                   // Row(
@@ -299,7 +299,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 32),
-                      backgroundColor: isFetching ? Colors.grey : Colors.blue,
+                      backgroundColor: isFetching
+                          ? const Color.fromARGB(255, 255, 255, 255)
+                          : Colors.blue,
                     ),
                   ),
                 ],
