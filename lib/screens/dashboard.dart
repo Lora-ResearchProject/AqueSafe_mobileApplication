@@ -166,9 +166,9 @@ class _DashboardState extends State<Dashboard> {
                         _showSOSConfirmationDialog(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: const Color.fromARGB(255, 248, 60, 47),
                         padding: const EdgeInsets.symmetric(
-                          vertical: 24.0,
+                          vertical: 26.0,
                           horizontal: 80.0,
                         ),
                         shape: RoundedRectangleBorder(
@@ -178,7 +178,7 @@ class _DashboardState extends State<Dashboard> {
                       child: const Text(
                         "TRIGGER SOS",
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 35,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -192,7 +192,7 @@ class _DashboardState extends State<Dashboard> {
                     'Notifications',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -288,14 +288,14 @@ class _DashboardState extends State<Dashboard> {
                     },
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 30),
 
                   // Quick Links
                   const Text(
                     'Quick Links',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -402,7 +402,7 @@ class _DashboardState extends State<Dashboard> {
             children: [
               Icon(
                 icon,
-                size: 44,
+                size: 48,
                 color: Colors.white,
               ),
               const SizedBox(height: 8),
