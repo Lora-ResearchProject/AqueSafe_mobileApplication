@@ -145,38 +145,6 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     backgroundColor: Colors.blue[900],
-  //     body: Center(
-  //       child: Column(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           const Text(
-  //             'AquaSafe',
-  //             style: TextStyle(
-  //               fontSize: 38,
-  //               fontWeight: FontWeight.bold,
-  //               color: Colors.white,
-  //             ),
-  //           ),
-  //           const SizedBox(height: 26),
-  //           const CircularProgressIndicator(),
-  //           const SizedBox(height: 20),
-  //           Text(
-  //             _loadingMessage,
-  //             style: const TextStyle(
-  //               fontSize: 18,
-  //               color: Colors.white,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -185,16 +153,6 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Container(
         width: size.width,
         height: size.height,
-        // decoration: const BoxDecoration(
-        //   gradient: LinearGradient(
-        //     colors: [
-        //       Color(0xFF1C3D72), // new top color
-        //       Color(0xFF0B3A71), // previous bottom color
-        //     ],
-        //     begin: Alignment.topCenter,
-        //     end: Alignment.bottomCenter,
-        //   ),
-        // ),
         color: const Color(0xFF151d67),
         child: SafeArea(
           child: Column(

@@ -14,6 +14,7 @@ class BluetoothDeviceManager {
   QualifiedCharacteristic? _hotspotChracteristic;
   QualifiedCharacteristic? _linkingCharacteristic;
   QualifiedCharacteristic? _saveLocationCharacteristic;
+  QualifiedCharacteristic? _unlinkingCharacteristic;
 
   BluetoothDeviceManager._internal();
 
@@ -36,6 +37,9 @@ class BluetoothDeviceManager {
 
   QualifiedCharacteristic? get linkingCharacteristic => _linkingCharacteristic;
 
+  QualifiedCharacteristic? get unlinkingCharacteristic =>
+      _unlinkingCharacteristic;
+
   QualifiedCharacteristic? get saveLocationCharacteristic =>
       _saveLocationCharacteristic;
 
@@ -50,7 +54,8 @@ class BluetoothDeviceManager {
       QualifiedCharacteristic weather,
       QualifiedCharacteristic hotspot,
       QualifiedCharacteristic linking,
-      QualifiedCharacteristic saveLocation) {
+      QualifiedCharacteristic saveLocation,
+      QualifiedCharacteristic unLinking) {
     _sosCharacteristic = sos;
     _gpsCharacteristic = gps;
     _chatCharacteristic = chat;
@@ -58,6 +63,7 @@ class BluetoothDeviceManager {
     _hotspotChracteristic = hotspot;
     _linkingCharacteristic = linking;
     _saveLocationCharacteristic = saveLocation;
+    _unlinkingCharacteristic = unLinking;
   }
 
   // Optional: Clear the device if needed
@@ -70,5 +76,6 @@ class BluetoothDeviceManager {
     _hotspotChracteristic = null;
     _linkingCharacteristic = null;
     _saveLocationCharacteristic = null;
+    _unlinkingCharacteristic = null;
   }
 }
