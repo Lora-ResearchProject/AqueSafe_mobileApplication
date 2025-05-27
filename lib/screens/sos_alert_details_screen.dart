@@ -25,6 +25,7 @@ class _SOSDetailViewState extends State<SOSDetailView> {
   // Load vessel marker image
   Future<void> _loadMarkerImage() async {
     final image = await _loadImage('assets/marker_vessel.png');
+    if (!mounted) return;
     setState(() {
       markerImage = image;
     });
