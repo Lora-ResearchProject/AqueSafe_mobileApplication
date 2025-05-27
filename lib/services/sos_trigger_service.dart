@@ -33,7 +33,11 @@ class SOSTriggerService {
         throw Exception("Vessel ID not found in SharedPreferences");
       }
 
+      print("Gerting current postion in sos trigger");
+
       var position = await _locationService.getCurrentPosition();
+      print("Current position get succeffully :$position");
+
       String latitude = position.latitude.toStringAsFixed(5);
       String longitude = position.longitude.toStringAsFixed(5);
 
