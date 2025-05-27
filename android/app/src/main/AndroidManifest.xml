@@ -17,6 +17,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
+    
+    <!-- Externel storage access Permissions for Android 10+ -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+
     <!-- Required to use BLE scanning -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
     

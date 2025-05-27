@@ -1,3 +1,4 @@
+import 'package:aqua_safe/logs/FileLogger.dart';
 import 'package:aqua_safe/screens/chat.dart';
 import 'package:aqua_safe/screens/weather_map.dart';
 import 'package:aqua_safe/screens/weather_screen.dart';
@@ -93,9 +94,13 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeServices() async {
+    final logger = FileLogger();
+
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? vesselId = prefs.getString('vesselId');
+
+      await logger.log('Fetched vesselId: $vesselId');
 
       if (vesselId == null) {
         _navigateToLogin();
@@ -108,6 +113,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
       final BluetoothService bluetoothService = BluetoothService();
       Future<bool> bleConnection = bluetoothService.scanAndConnect();
+
+      logger.log("Connecting to Bluetooth & Starting Services...");
 
       final SOSHistoryScheduler sosScheduler = SOSHistoryScheduler();
       sosScheduler.startScheduler(onSOSUpdate: () {
@@ -124,11 +131,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (!bluetoothConnected) {
         print("⚠️ Bluetooth connection failed.");
+        await logger.log('Bluetooth connection failed');
       }
 
       _navigateToDashboard();
     } catch (e) {
       print("❌ Error during initialization: $e");
+      await logger.log('Error during initialization: $e');
       _navigateToDashboard();
     }
   }
