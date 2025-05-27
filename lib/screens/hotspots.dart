@@ -504,6 +504,9 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
                         final prefs = await SharedPreferences.getInstance();
                         prefs.remove('selectedHotspot');
 
+                        // Unlink the selected hotspot
+                        await BluetoothService().sendUnlinkingData();
+
                         setState(() {
                           selectedHotspot = null;
                           destinations.clear();
@@ -514,6 +517,9 @@ class _HotspotsScreenState extends State<HotspotsScreen> {
                             };
                           }).toList());
                         });
+
+                        // 🔁 Re-fetch suggested hotspots
+                        // await _fetchFishingHotspots();
                       },
                       icon: const Icon(Icons.cancel,
                           color: Colors.white, size: 28),
