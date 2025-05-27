@@ -472,7 +472,7 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: (!isSingleDigitZeroOneTwo &&
                             selectedMessageNumber.isNotEmpty)
-                        ? Color.fromRGBO(2, 9, 72, 1)
+                        ? Colors.white
                         : Colors.grey.shade600,
                     minimumSize: const Size(double.infinity, 55),
                     side: (!isSingleDigitZeroOneTwo &&
@@ -485,7 +485,7 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
                     style: TextStyle(
                       color: (!isSingleDigitZeroOneTwo &&
                               selectedMessageNumber.isNotEmpty)
-                          ? Colors.white
+                          ? Color.fromRGBO(2, 9, 72, 1)
                           : Colors.grey.shade400,
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
