@@ -23,7 +23,7 @@ class FishingHotspotService {
       await _bluetoothService.sendHotspotRequest(hotspotRequest);
 
       // Wait for the ESP32 to respond
-      await Future.delayed(Duration(seconds: 5));
+      await Future.delayed(Duration(seconds: 10));
 
       List<Map<String, dynamic>> hotspotList =
           await _bluetoothService.listenForHotspotUpdates();

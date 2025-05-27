@@ -47,7 +47,7 @@ class WeatherService {
 
       await _bluetoothService.sendWeatherRequest(weatherData);
 
-      await Future.delayed(Duration(seconds: 5));
+      await Future.delayed(Duration(seconds: 10));
 
       if (isCurrentLocation) {
         print("📡 Listening weather for **current location**: $weatherData");
