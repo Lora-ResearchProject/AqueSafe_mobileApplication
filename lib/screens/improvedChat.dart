@@ -55,6 +55,14 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
 
   void _selectNumber(int number) {
     setState(() {
+      // Prevent selecting '0' as first digit
+      if (number == 0 && selectedNumbers.isEmpty) return;
+
+      // Prevent selecting multiple 0s in a row (like 00, 000)
+      if (number == 0 &&
+          selectedNumbers.isNotEmpty &&
+          selectedNumbers.last == 0) return;
+
       if (selectedNumbers.length < 2) {
         selectedNumbers.add(number);
         selectedMessageNumber = selectedNumbers.join("");
@@ -70,6 +78,13 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
   }
 
   Widget _buildMessageTile(String text, bool isSent) {
+    // Check if the message contains the word 'Location'
+    bool containsLocation = text.contains("Location");
+
+    Color backgroundColor = containsLocation
+        ? const Color.fromARGB(255, 255, 179, 174) // Light red color
+        : (isSent ? const Color(0xFFA3E2FF) : Colors.white); // Default color
+
     return Align(
       alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -81,13 +96,13 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isSent ? const Color(0xFFA3E2FF) : Colors.white,
+          color: isSent ? const Color(0xFFA3E2FF) : backgroundColor,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           text,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             color: isSent ? Colors.black : Colors.black87,
           ),
         ),
@@ -337,6 +352,11 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    bool isSingleDigitZeroOneTwo = selectedMessageNumber.length == 1 &&
+        (selectedMessageNumber == '0' ||
+            selectedMessageNumber == '1' ||
+            selectedMessageNumber == '2');
+
     return Scaffold(
         backgroundColor: const Color(0xFF151d67),
         appBar: AppBar(
@@ -445,23 +465,27 @@ class _ImprovedChatScreenState extends State<ImprovedChatScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: ElevatedButton(
-                  onPressed:
-                      selectedMessageNumber.isNotEmpty ? _sendMessage : null,
+                  onPressed: (!isSingleDigitZeroOneTwo &&
+                          selectedMessageNumber.isNotEmpty)
+                      ? _sendMessage
+                      : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: selectedMessageNumber.isNotEmpty
-                        ? Color.fromRGBO(2, 9, 72, 1)
+                    backgroundColor: (!isSingleDigitZeroOneTwo &&
+                            selectedMessageNumber.isNotEmpty)
+                        ? Colors.white
                         : Colors.grey.shade600,
                     minimumSize: const Size(double.infinity, 55),
-                    side: selectedMessageNumber.isEmpty
-                        ? const BorderSide(color: Colors.grey, width: 1)
-                        : BorderSide(
-                            color: Colors.white), // no border when enabled
+                    side: (!isSingleDigitZeroOneTwo &&
+                            selectedMessageNumber.isNotEmpty)
+                        ? BorderSide(color: Colors.white)
+                        : const BorderSide(color: Colors.grey, width: 1),
                   ),
                   child: Text(
                     "Send",
                     style: TextStyle(
-                      color: selectedMessageNumber.isNotEmpty
-                          ? Colors.white
+                      color: (!isSingleDigitZeroOneTwo &&
+                              selectedMessageNumber.isNotEmpty)
+                          ? Color.fromRGBO(2, 9, 72, 1)
                           : Colors.grey.shade400,
                       fontSize: 26,
                       fontWeight: FontWeight.bold,

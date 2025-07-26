@@ -1,3 +1,4 @@
+import 'package:aqua_safe/screens/help_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/edit_account.dart';
@@ -129,8 +130,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSettingsOption(
               context,
               icon: Icons.help,
-              title: "Help",
-              onTap: () {},
+              title: "Help & Support",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpScreen()),
+                );
+              },
             ),
             _buildSettingsOption(
               context,

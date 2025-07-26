@@ -20,6 +20,10 @@ class SOSAlertCard extends StatelessWidget {
     String formattedTime = "N/A";
     try {
       DateTime parsedDateTime = DateTime.parse(rawDateTime);
+      // Add 5 hours and 30 minutes
+      parsedDateTime =
+          parsedDateTime.add(const Duration(hours: 5, minutes: 30));
+
       formattedDate = DateFormat('yyyy-MM-dd').format(parsedDateTime);
       formattedTime = DateFormat('hh:mm a')
           .format(parsedDateTime); // 🕰 Readable 12-hour format

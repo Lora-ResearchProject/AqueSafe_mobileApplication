@@ -1,4 +1,3 @@
-import 'package:aqua_safe/screens/weather_map.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/weather_service.dart';
@@ -59,8 +58,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
       latitude = position.latitude;
       longitude = position.longitude;
 
-      List<Map<String, dynamic>> fetchedHotspots =
-          await fishingHotspotService.fetchSuggestedFishingHotspots(latitude, longitude);
+      List<Map<String, dynamic>> fetchedHotspots = await fishingHotspotService
+          .fetchSuggestedFishingHotspots(latitude, longitude);
 
       if (fetchedHotspots.isNotEmpty) {
         setState(() {
@@ -151,41 +150,41 @@ class _WeatherScreenState extends State<WeatherScreen> {
       body: Column(
         children: [
           // View Hotspot Map Button (Right-Aligned)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 200,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const WeatherMapScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    icon: const Icon(Icons.map, color: Colors.white),
-                    label: const Text("View Hotspot Map",
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.end,
+          //     children: [
+          //       SizedBox(
+          //         width: 200,
+          //         child: ElevatedButton.icon(
+          //           onPressed: () {
+          //             Navigator.push(
+          //               context,
+          //               MaterialPageRoute(
+          //                 builder: (context) => const WeatherMapScreen(),
+          //               ),
+          //             );
+          //           },
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: Colors.blueAccent,
+          //             padding: const EdgeInsets.symmetric(vertical: 10),
+          //             shape: RoundedRectangleBorder(
+          //               borderRadius: BorderRadius.circular(6),
+          //             ),
+          //             textStyle: const TextStyle(
+          //               fontSize: 16,
+          //               fontWeight: FontWeight.bold,
+          //             ),
+          //           ),
+          //           icon: const Icon(Icons.map, color: Colors.white),
+          //           label: const Text("View Hotspot Map",
+          //               style: TextStyle(color: Colors.white)),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
           const SizedBox(height: 20),
 
           // Navigation Bar (Current & Hotspots with Loading State)
@@ -228,7 +227,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 children: [
                   Text(
                     locationName,
-                    style: const TextStyle(fontSize: 26, color: Colors.white),
+                    style: const TextStyle(fontSize: 30, color: Colors.white),
                   ),
                   const SizedBox(height: 20),
 
@@ -241,7 +240,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
                   Text(
                     weatherCondition,
-                    style: const TextStyle(fontSize: 22, color: Colors.white),
+                    style: const TextStyle(fontSize: 30, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 10),
@@ -261,14 +260,14 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               : "$weatherPercentage%",
                           // text: "${weatherPercentage ?? 0}%",
                           style: TextStyle(
-                            fontSize: weatherPercentage == null ? 30 : 60,
+                            fontSize: weatherPercentage == null ? 30 : 80,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 40),
 
                   // Forecast Timeline
                   // Row(
@@ -300,7 +299,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 32),
-                      backgroundColor: isFetching ? Colors.grey : Colors.blue,
+                      backgroundColor: isFetching
+                          ? const Color.fromARGB(255, 255, 255, 255)
+                          : Colors.blue,
                     ),
                   ),
                 ],

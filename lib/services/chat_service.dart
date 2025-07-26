@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ChatService {
   final BluetoothService _bluetoothService = BluetoothService();
   final ChatMessageScheduler _msgScheduler = ChatMessageScheduler();
-  StreamSubscription? _chatSubscription; // Track the subscription
+  StreamSubscription? _chatSubscription;
 
   Future<void> sendChatMessage(int messageNumber) async {
     try {
@@ -55,6 +55,7 @@ class ChatService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> chatHistory = prefs.getStringList("chatHistory") ?? [];
 
+    print("Formatted Message $formattedMessage");
     chatHistory.add(jsonEncode({"msg": formattedMessage}));
 
     if (chatHistory.length > 10) {
@@ -103,7 +104,6 @@ class ChatService {
 
       // Ignore messages not meant for this vessel
       if (senderVesselId == vesselId) {
-        //print("✅ Chat message received for this vessel($senderVesselId): $message");
         String messageId = receivedId.split('|')[1];
 
         // Check if the message with the same ID is already stored locally
@@ -120,10 +120,20 @@ class ChatService {
             (msg) => msg['messageNumber'] == message['m'],
             orElse: () => {});
 
-        String messageContent =
+        String baseMessage =
             msgEntry.isNotEmpty ? msgEntry['message'] : "Unknown message";
+
+        // Check for location "l" and format it as needed
+        String location = "";
+        if (message.containsKey("l")) {
+          final loc = message["l"].toString().split('|');
+          if (loc.length == 2) {
+            location = "[${loc[0]}, ${loc[1]}]";
+          }
+        }
+
         String formattedMsg =
-            "R-${receivedId.split('|')[1]}-[${message['m']}]-$messageContent";
+            "R-${messageId}-[${message['m']}]-$baseMessage$location";
 
         // Store received message locally
         await _storeMessageLocally(formattedMsg);
@@ -147,12 +157,12 @@ class ChatService {
     List<Map<String, dynamic>> messages = chatHistory.map((chatData) {
       Map<String, dynamic> chatEntry = jsonDecode(chatData);
       String fullMsg = chatEntry["msg"];
+      print("Full Msg $fullMsg");
       String message = "${fullMsg.split('-')[2]}-${fullMsg.split('-')[3]}";
       String messageId = fullMsg.split('-')[1];
       int timestamp = GenerateUniqueIdService().getTimestampFromId(messageId);
 
-      print(
-          ">>>>>>> Parsed message with timestamp: $timestamp, message: $message");
+      print("Parsed message with timestamp: $timestamp, message: $message");
 
       return {
         'message': message,
@@ -167,11 +177,11 @@ class ChatService {
     return messages;
   }
 
-  // Stop listening for BLE chat messages (Unsubscribe from the BLE stream)
+  // Stop listening for BLE chat messages
   void stopListeningForChatMessages() {
     if (_chatSubscription != null) {
-      _chatSubscription?.cancel(); // Cancel the current subscription
-      _chatSubscription = null; // Clear the subscription
+      _chatSubscription?.cancel();
+      _chatSubscription = null;
       print("🔕 Stopped listening for chat messages.");
     }
   }

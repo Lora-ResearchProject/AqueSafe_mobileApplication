@@ -30,6 +30,7 @@ class BluetoothService {
   late QualifiedCharacteristic hotspotChracteristic;
   late QualifiedCharacteristic linkingCharacteristic;
   late QualifiedCharacteristic saveLocationCharacteristic;
+  late QualifiedCharacteristic unlinkingCharacteristic;
 
   StreamSubscription<ConnectionStateUpdate>? connectionSubscription;
   StreamSubscription<List<int>>? chatSubscription;
@@ -191,6 +192,12 @@ class BluetoothService {
         deviceId: device.id,
       );
 
+      unlinkingCharacteristic = QualifiedCharacteristic(
+        characteristicId: Uuid.parse(Constants.unlinkingCharacteristicUuid),
+        serviceId: Uuid.parse(Constants.serviceUuid),
+        deviceId: device.id,
+      );
+
       BluetoothDeviceManager().setCharacteristics(
           sosCharacteristic,
           gpsCharacteristic,
@@ -198,10 +205,11 @@ class BluetoothService {
           weatherCharacteristic,
           hotspotChracteristic,
           linkingCharacteristic,
-          saveLocationCharacteristic);
+          saveLocationCharacteristic,
+          unlinkingCharacteristic);
 
       print(
-          "✅ Save Fishing Location Characteristic initialized: ${saveLocationCharacteristic.characteristicId}");
+          "✅ Save Fishing Location Characteristic initialized: ${unlinkingCharacteristic.characteristicId}");
 
       print("Device connected and characteristics initialized.");
     } catch (e) {
@@ -321,7 +329,7 @@ class BluetoothService {
     // Always cancel the previous subscription if it exists
     if (chatSubscription != null) {
       print("🔕 Cancelling existing subscription.");
-      chatSubscription?.cancel(); // Cancel the previous subscription
+      chatSubscription?.cancel();
     }
 
     // ✅ FIX: Save the new subscription
@@ -504,6 +512,38 @@ class BluetoothService {
       }
     } catch (e) {
       print("❌ Error sending linking data: $e");
+    }
+  }
+
+  Future<void> sendUnlinkingData() async {
+    final unlinkingCharacteristic =
+        BluetoothDeviceManager().unlinkingCharacteristic;
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? vesselId = prefs.getString('vesselId');
+
+      if (vesselId == null) {
+        throw Exception("Vessel ID not found in SharedPreferences.");
+      }
+
+      final Map<String, dynamic> unlinkRequest = {
+        "vessel_id": vesselId,
+      };
+
+      final String unlinkJson = jsonEncode(unlinkRequest);
+
+      if (unlinkingCharacteristic != null) {
+        await _ble.writeCharacteristicWithResponse(
+          unlinkingCharacteristic,
+          value: utf8.encode(unlinkJson),
+        );
+        print("🔗✅ Unlink request sent over BLE: $unlinkJson");
+      } else {
+        throw Exception("Unlinking characteristic not initialized.");
+      }
+    } catch (e) {
+      print("❌ Error sending unlinking data via BLE: $e");
     }
   }
 

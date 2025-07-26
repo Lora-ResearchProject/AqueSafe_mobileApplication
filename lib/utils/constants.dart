@@ -18,6 +18,8 @@ class Constants {
       "abcd1234-5678-1234-5678-abcdef111215";
   static const String saveLocationCharacteristicUuid =
       "abcd1234-5678-1234-5678-abcdef111216";
+  static const String unlinkingCharacteristicUuid =
+      "abcd1234-5678-1234-5678-abcdef111217";
 
   static const String vesselId = "123"; // Example vessel ID
 }

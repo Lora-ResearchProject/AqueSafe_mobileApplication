@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:timeago/timeago.dart' as timeago;
@@ -7,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 class AppStateManager {
   static final AppStateManager _instance = AppStateManager._internal();
+  final ValueNotifier<bool> sosStatusNotifier = ValueNotifier(false);
 
   factory AppStateManager() => _instance;
 
@@ -51,7 +53,10 @@ class AppStateManager {
 
     await saveSOSToLocal(); // ✅ Now save after fetching vessel name
 
-    print("✅ Latest SOS Updated");
+    // Notify UI
+    sosStatusNotifier.value = true;
+
+    print("✅ Latest SOS saved and Notified UI");
     print("🚢 Vessel Name: $_vesselName"); // Check if vessel name is still null
   }
 
@@ -71,32 +76,10 @@ class AppStateManager {
         }),
       );
     }
-
+    print("Latest Sos saved in local: ${prefs.getString('lastSOS')}");
     print('----vesel Name:${_vesselName}');
   }
 
-  // Future<void> fetchVesselName(String vesselId) async {
-  //   final String? baseUrl = dotenv.env['MAIN_API_BASE_URL'];
-
-  //   if (baseUrl == null) {
-  //     return;
-  //   }
-
-  //   final String apiUrl = "$baseUrl/api/vessel-auth/$vesselId";
-
-  //   try {
-  //     final response = await http.get(Uri.parse(apiUrl));
-
-  //     if (response.statusCode == 200) {
-  //       final data = jsonDecode(response.body);
-  //       _vesselName = data['vesselName'];
-  //     } else {
-  //       _vesselName = "Unknown Vessel";
-  //     }
-  //   } catch (e) {
-  //     _vesselName = "Unknown Vessel";
-  //   }
-  // }
   Future<void> fetchVesselName(String vesselId) async {
     final String? baseUrl = dotenv.env['MAIN_API_BASE_URL'];
 
