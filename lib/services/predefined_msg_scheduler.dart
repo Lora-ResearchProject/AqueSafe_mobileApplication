@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -12,14 +13,24 @@ class ChatMessageScheduler {
   Timer? _fetchScheduler;
 
   void startScheduler() {
-    _fetchScheduler = Timer.periodic(const Duration(minutes: 10), (timer) async {
+    // Run immediately
+    print("✅ Predefined chat message scheduler started succesfully.");
+    _runFetch();
+
+    // Then schedule every 10 minutes
+    _fetchScheduler =
+        Timer.periodic(const Duration(minutes: 10), (timer) async {
       print("✅ Predefined chat message scheduler started succesfully.");
-      if (await _hasInternetConnection()) {
-        _fetchAndCacheChatMessages();
-      } else {
-        print("❌ No internet connection. Skipping chat message fetch.");
-      }
+      _runFetch();
     });
+  }
+
+  void _runFetch() async {
+    if (await _hasInternetConnection()) {
+      await _fetchAndCacheChatMessages();
+    } else {
+      print("❌ No internet connection. Skipping chat message fetch.");
+    }
   }
 
   void stopScheduler() {
@@ -27,6 +38,7 @@ class ChatMessageScheduler {
   }
 
   Future<bool> _hasInternetConnection() async {
+    print("Checking for internet connection to fetch predefined msgs.");
     try {
       final result = await http
           .get(Uri.parse("https://www.google.com"))
@@ -46,7 +58,12 @@ class ChatMessageScheduler {
   }
 
   Future<void> _fetchAndCacheChatMessages() async {
-    const String apiUrl = "https://app.aquasafe.fish/backend/api/messageData";
+    final String? baseUrl = dotenv.env['MAIN_API_BASE_URL'];
+    if (baseUrl == null) {
+      print("❌ API base URL not configured in .env file.");
+      return;
+    }
+    final String apiUrl = "$baseUrl/messageData";
     print("🌍 Fetching predefined chat messages from API: $apiUrl");
 
     try {

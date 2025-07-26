@@ -113,9 +113,11 @@ class _SplashScreenState extends State<SplashScreen> {
       sosScheduler.startScheduler(onSOSUpdate: () {
         print("🔄 UI updated: SOS status changed");
       });
+        print("SOS history scheduler calling start");
 
       final ChatMessageScheduler chatMessageScheduler = ChatMessageScheduler();
       chatMessageScheduler.startScheduler();
+      print("chatMessageScheduler calling start");
 
       // Wait for both to finish
       await Future.wait([bleConnection]);
